@@ -72,6 +72,27 @@ A comprehensive, production-ready collection of specialized AI agents, security 
 
 ---
 
+## 💻 System Requirements
+
+### Minimum Requirements
+- **Disk Space:** 2MB free in home directory (includes backup space)
+- **Permissions:** Write access to `~/.claude` directory
+- **OS Support:**
+  - Linux: Ubuntu 20.04+, Debian 11+, RHEL 8+
+  - macOS: 12.0 (Monterey)+
+  - Windows: 10/11 with PowerShell 5.1+
+
+### Software Dependencies
+- **Required:** Claude Code CLI (latest version), Git 2.20+
+- **Optional:** Node.js 18+ & npm 9+ (for MCP database servers)
+
+### Compatibility Notes
+- **Windows:** PowerShell 7+ recommended (5.1 minimum)
+- **macOS:** Apple Silicon (M1/M2/M3) fully supported
+- **WSL:** Windows Subsystem for Linux supported via `install.sh`
+
+---
+
 ## 📥 Installation
 
 ### Automated Installation (Recommended)
@@ -268,31 +289,243 @@ Refresh: `/agents refresh`
 
 ## 🔄 Updating
 
+### Standard Update
 ```bash
 cd claude-agent-suite
 git pull origin main
 ./install.sh  # or install.ps1 on Windows
 ```
 
+### ⚠️ Important: Customized Agents
+**The installer overwrites all default agents.** If you customized any of the 15 included agents:
+
+1. **Backup custom agents first:**
+   ```bash
+   # Linux/Mac
+   cp ~/.claude/agents/[your-modified-agent].md ~/backup/
+
+   # Windows (PowerShell)
+   Copy-Item $HOME\.claude\agents\[your-modified-agent].md $HOME\backup\
+   ```
+
+2. **Run update:**
+   ```bash
+   ./install.sh  # or install.ps1 on Windows
+   ```
+
+3. **Restore or merge custom changes:**
+   ```bash
+   # Option 1: Restore your version (overwrites update)
+   cp ~/backup/[agent].md ~/.claude/agents/
+
+   # Option 2: Manually merge changes
+   diff ~/backup/[agent].md ~/.claude/agents/[agent].md
+   ```
+
+**Best Practice:** Use unique names for custom agents (e.g., `my-python-expert.md`) to avoid overwrites during updates.
+
 ---
 
 ## 🐛 Troubleshooting
 
-### Agents Not Showing Up
+### Installation Issues
+
+#### Error: "Agents directory not found"
+**Cause:** Repository downloaded as ZIP instead of git clone.
+
+**Solution:**
+1. Delete the downloaded ZIP directory
+2. Clone properly: `git clone https://github.com/qepting91/claude-agent-suite.git`
+3. Re-run installation script
+
+#### Error: "Permission denied"
+**Cause:** Insufficient permissions to home directory.
+
+**Solution (Linux/Mac):**
 ```bash
-/agents refresh
+sudo chown -R $USER:$USER ~/.claude
+chmod 755 ~/.claude
 ```
 
-### MCP Servers Not Connecting
+**Solution (Windows):** Run PowerShell as Administrator
+
+#### Warning: "Not a git repository"
+**Impact:** Future updates via `git pull` will not work.
+
+**Prevention:** Always clone the repository with git instead of downloading as ZIP.
+
+#### Issue: "Agent count: 0" after installation
+**Diagnosis:**
+```bash
+# Check if files actually exist
+ls ~/.claude/agents/  # Linux/Mac
+dir $HOME\.claude\agents\  # Windows
+```
+
+**Solution:** Re-run installer. If problem persists, check disk space and permissions.
+
+#### Error: "Agent count mismatch"
+**Cause:** Corrupt repository download or interrupted installation.
+
+**Solution:**
+1. Delete the repository directory
+2. Fresh clone: `git clone https://github.com/qepting91/claude-agent-suite.git`
+3. Re-run installer
+
+### Runtime Issues
+
+#### Agents not showing in /agents list
+**Diagnosis & Solutions:**
+1. Run `/agents refresh` in Claude Code
+2. Verify files exist: `ls ~/.claude/agents/*.md` (should show 15 files)
+3. Check frontmatter syntax: `head -5 ~/.claude/agents/python-architect.md` (should start with `---`)
+4. Restart Claude Code completely
+
+#### MCP database connections failing
+**Diagnosis:**
 ```bash
 /mcp
 claude mcp list
 ```
 
-### Run Diagnostics
+**Common Issues & Solutions:**
+- Database credentials incorrect → Check connection strings in `.mcp.json`
+- `npx` not in PATH → Verify Node.js installation: `node --version`
+- Port already in use → Check with `netstat -an | grep 5432` (adjust port)
+- MCP server not installed → Run `npx -y @modelcontextprotocol/server-postgres --version`
+
+### Rollback & Recovery
+
+#### Restore previous configuration
+The installer creates timestamped backups. To restore:
+
 ```bash
-/doctor
+# Find your backup
+ls -d ~/.claude.backup.*
+
+# Restore (replace timestamp with yours)
+rm -rf ~/.claude
+mv ~/.claude.backup.20260202-143022 ~/.claude
 ```
+
+**Windows:**
+```powershell
+# Find backup
+Get-ChildItem $HOME\.claude.backup.*
+
+# Restore
+Remove-Item -Recurse $HOME\.claude
+Move-Item $HOME\.claude.backup.20260202-143022 $HOME\.claude
+```
+
+#### Complete uninstall
+```bash
+# Backup first (optional)
+cp -r ~/.claude ~/.claude.manual-backup
+
+# Remove everything
+rm -rf ~/.claude
+```
+
+**Windows:**
+```powershell
+Copy-Item -Recurse $HOME\.claude $HOME\.claude.manual-backup
+Remove-Item -Recurse $HOME\.claude
+```
+
+### Diagnostics Commands
+
+```bash
+# Verify installation
+/agents                           # List all agents
+/doctor                          # Run diagnostics
+claude --version                 # Check CLI version
+
+# Check file counts
+ls ~/.claude/agents/*.md | wc -l # Should be 15
+
+# Validate agent format
+head -10 ~/.claude/agents/python-architect.md
+```
+
+---
+
+## ❓ Frequently Asked Questions
+
+### Installation
+
+**Q: Will this affect my current agents?**
+A: No. The installer creates a timestamped backup before making any changes. Your original configuration is preserved.
+
+**Q: How much disk space is required?**
+A: Approximately 2MB total (agents + documentation + backup space).
+
+**Q: Can I customize the included agents?**
+A: Yes, but be aware that updates will overwrite your changes. **Recommended solution:** Copy the agent to a new file with a unique name (e.g., `my-python-architect.md`) and customize that version instead.
+
+**Q: Do I need all 15 agents?**
+A: No. After installation, you can delete any agents you don't need from `~/.claude/agents/`.
+
+**Q: Can I re-run the installer safely?**
+A: Yes. The installer is idempotent and creates a new timestamped backup each time.
+
+**Q: Do I need to restart Claude Code after installation?**
+A: No, but you should run `/agents refresh` to reload the agent list.
+
+**Q: What if the installation fails midway?**
+A: The installer will attempt to automatically rollback to your backup. If that fails, you can manually restore from `~/.claude.backup.[timestamp]`.
+
+### Configuration
+
+**Q: How do I add my own agents?**
+A: Create a `.md` file in `~/.claude/agents/` with YAML frontmatter. See the CONTRIBUTING.md guide for the required format.
+
+**Q: Can I modify the security hooks?**
+A: Yes. Edit `~/.claude/settings.json` to customize the `hooks` section. See `config/settings.json` for examples.
+
+**Q: How do I configure MCP database connections?**
+A: Create `.mcp.json` in your project root or configure in `~/.claude.json` for user-wide settings. See AGENT_TEAM_GUIDE.md for detailed instructions.
+
+### Updates
+
+**Q: How do I update without losing customizations?**
+A:
+1. Backup any customized agents: `cp ~/.claude/agents/[modified-agent].md ~/backup/`
+2. Run the installer: `./install.sh`
+3. Restore customizations: `cp ~/backup/[agent].md ~/.claude/agents/`
+
+Alternatively, use unique filenames for custom agents (e.g., `my-custom-python.md`) to avoid conflicts.
+
+**Q: What if `git pull` fails with "not a git repository"?**
+A: The repository was downloaded as a ZIP file. Delete the directory and clone properly:
+```bash
+git clone https://github.com/qepting91/claude-agent-suite.git
+```
+
+**Q: How often should I update?**
+A: Check the repository weekly for security patches and new features. Subscribe to GitHub releases for notifications.
+
+### Security
+
+**Q: What do the security hooks do?**
+A: The PreToolUse hook validates bash commands before execution (checking for destructive operations, credential exposure, etc.). The PostToolUse hook tracks file modifications. See `config/settings.json` for details.
+
+**Q: Can I disable the security hooks?**
+A: Yes, but it's not recommended. Remove the `hooks` section from `~/.claude/settings.json` to disable.
+
+**Q: Are the agents safe to use?**
+A: Yes. All agents follow the principle of least privilege - they only have access to the minimum tools needed. Security agents are read-only by default.
+
+### Usage
+
+**Q: Which agent should I use for [task]?**
+A: Use `/agents` to see the full list with descriptions. The router will automatically select the best agent based on your request.
+
+**Q: Can I use multiple agents together?**
+A: Yes. You can invoke different agents for different parts of a task, or use one agent's output as input to another.
+
+**Q: Do the database agents require databases to be running?**
+A: The postgres-dba, mysql-expert, and mongo-architect agents require MCP server connections. Other agents work without any external dependencies.
 
 ---
 

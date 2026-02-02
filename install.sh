@@ -23,6 +23,69 @@ echo -e "${NC}"
 CLAUDE_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude.backup.$(date +%Y%m%d-%H%M%S)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKUP_CREATED=false
+
+# Validation Functions
+
+# Function: Validate agent has proper YAML frontmatter
+validate_agent_frontmatter() {
+  local agent_file="$1"
+  local agent_name=$(basename "$agent_file")
+
+  # Check file size (> 100 bytes)
+  local file_size=$(stat -c%s "$agent_file" 2>/dev/null || stat -f%z "$agent_file" 2>/dev/null)
+  if [ "$file_size" -lt 100 ]; then
+    echo -e "${RED}  ✗ Invalid: $agent_name (too small: ${file_size}B)${NC}"
+    return 1
+  fi
+
+  # Check for YAML frontmatter markers
+  if ! grep -q "^---$" "$agent_file"; then
+    echo -e "${RED}  ✗ Invalid: $agent_name (no YAML frontmatter)${NC}"
+    return 1
+  fi
+
+  # Check required fields: name, description, tools, model
+  local frontmatter=$(sed -n '/^---$/,/^---$/p' "$agent_file" | head -n -1 | tail -n +2)
+  for field in "name:" "description:" "tools:" "model:"; do
+    if ! echo "$frontmatter" | grep -q "^$field"; then
+      echo -e "${RED}  ✗ Invalid: $agent_name (missing $field)${NC}"
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+# Function: Detect if repository was cloned with git
+check_git_repository() {
+  if [ ! -d "$SCRIPT_DIR/.git" ]; then
+    echo -e "${YELLOW}  ⚠ Not a git repository (downloaded as ZIP?)${NC}"
+    echo -e "${YELLOW}    Future updates via 'git pull' will not work${NC}"
+    echo -e "${CYAN}    Recommended: git clone https://github.com/qepting91/claude-agent-suite.git${NC}"
+    read -p "  Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      exit 0
+    fi
+  fi
+}
+
+# Function: Rollback on failure
+rollback_installation() {
+  echo -e "\n${RED}Installation failed! Rolling back...${NC}"
+  if [ "$BACKUP_CREATED" = true ]; then
+    rm -rf "$CLAUDE_DIR"
+    mv "$BACKUP_DIR" "$CLAUDE_DIR"
+    echo -e "${GREEN}Rollback complete. Original configuration restored.${NC}"
+  else
+    echo -e "${YELLOW}No backup to restore (was fresh install).${NC}"
+  fi
+  exit 1
+}
+
+# Set trap for automatic rollback on error
+trap rollback_installation ERR
 
 # Check if Claude Code is installed
 echo -e "${YELLOW}[1/6] Checking prerequisites...${NC}"
@@ -36,13 +99,30 @@ else
     exit 1
 fi
 
+# Check repository type
+check_git_repository
+
 # Create backup
 echo -e "\n${YELLOW}[2/6] Creating backup...${NC}"
 if [ -d "$CLAUDE_DIR" ]; then
+    echo -e "${CYAN}  Creating backup: $BACKUP_DIR${NC}"
     cp -r "$CLAUDE_DIR" "$BACKUP_DIR"
-    echo -e "${GREEN}  ✓ Backup created: $BACKUP_DIR${NC}"
+
+    # Verify backup
+    if [ -d "$BACKUP_DIR" ]; then
+        BACKUP_AGENT_COUNT=$(find "$BACKUP_DIR/agents" -name "*.md" -type f 2>/dev/null | wc -l || echo "0")
+        ORIGINAL_AGENT_COUNT=$(find "$CLAUDE_DIR/agents" -name "*.md" -type f 2>/dev/null | wc -l || echo "0")
+
+        if [ "$BACKUP_AGENT_COUNT" -eq "$ORIGINAL_AGENT_COUNT" ] || [ "$ORIGINAL_AGENT_COUNT" -eq 0 ]; then
+            BACKUP_CREATED=true
+            echo -e "${GREEN}  ✓ Backup created and verified${NC}"
+        else
+            echo -e "${RED}  ✗ Backup verification failed!${NC}"
+            exit 1
+        fi
+    fi
 else
-    echo -e "${CYAN}  ℹ No existing .claude directory found (fresh install)${NC}"
+    echo -e "${CYAN}  ℹ No .claude directory found (fresh install, no backup needed)${NC}"
 fi
 
 # Create directories
@@ -50,17 +130,57 @@ echo -e "\n${YELLOW}[3/6] Creating directories...${NC}"
 mkdir -p "$CLAUDE_DIR/agents"
 echo -e "${GREEN}  ✓ Created: $CLAUDE_DIR/agents${NC}"
 
-# Copy agents
+# Copy agents with validation
 echo -e "\n${YELLOW}[4/6] Installing agents...${NC}"
+
+EXPECTED_AGENTS=15
+COPIED_AGENTS=0
+
 if [ -d "$SCRIPT_DIR/agents" ]; then
+    # Validate all agents first
+    echo -e "${CYAN}  Validating agent files...${NC}"
     for agent in "$SCRIPT_DIR/agents"/*.md; do
-        if [ -f "$agent" ]; then
-            cp "$agent" "$CLAUDE_DIR/agents/"
-            echo -e "${GREEN}  ✓ Installed: $(basename "$agent")${NC}"
+        [ -f "$agent" ] || continue
+        if ! validate_agent_frontmatter "$agent"; then
+            echo -e "${RED}  Validation failed! Repository may be corrupted.${NC}"
+            rollback_installation
         fi
     done
+
+    # Copy validated agents
+    echo -e "${CYAN}  Copying agents...${NC}"
+    for agent in "$SCRIPT_DIR/agents"/*.md; do
+        [ -f "$agent" ] || continue
+        agent_name=$(basename "$agent")
+
+        if cp "$agent" "$CLAUDE_DIR/agents/"; then
+            # Verify copy succeeded
+            if [ -f "$CLAUDE_DIR/agents/$agent_name" ]; then
+                ((COPIED_AGENTS++))
+                echo -e "${GREEN}  ✓ Installed: $agent_name${NC}"
+            else
+                echo -e "${RED}  ✗ Copy verification failed: $agent_name${NC}"
+                rollback_installation
+            fi
+        else
+            echo -e "${RED}  ✗ Failed to copy: $agent_name${NC}"
+            rollback_installation
+        fi
+    done
+
+    # Verify expected count
+    if [ $COPIED_AGENTS -ne $EXPECTED_AGENTS ]; then
+        echo -e "${RED}  ✗ Agent count mismatch! Expected $EXPECTED_AGENTS, got $COPIED_AGENTS${NC}"
+        rollback_installation
+    fi
+
+    echo -e "${GREEN}  ✓ All $COPIED_AGENTS agents installed successfully${NC}"
 else
-    echo -e "${RED}  ✗ Agents directory not found!${NC}"
+    echo -e "${RED}  ✗ Agents directory not found: $SCRIPT_DIR/agents${NC}"
+    echo -e "${CYAN}  Common causes:${NC}"
+    echo -e "${GRAY}    • Downloaded as ZIP (not git clone)${NC}"
+    echo -e "${GRAY}    • Running from wrong directory${NC}"
+    echo -e "${GRAY}    • Incomplete download${NC}"
     exit 1
 fi
 
@@ -103,7 +223,12 @@ echo -e "\n${CYAN}📊 Installation Summary:${NC}"
 AGENT_COUNT=$(find "$CLAUDE_DIR/agents" -name "*.md" -type f | wc -l)
 echo -e "  • Agents installed: $AGENT_COUNT"
 echo -e "  • Configuration: $CLAUDE_DIR"
-echo -e "  • Backup location: $BACKUP_DIR"
+
+# Only show backup if one was created
+if [ "$BACKUP_CREATED" = true ]; then
+    echo -e "  • Backup location: $BACKUP_DIR"
+    echo -e "${GRAY}    (Restore: rm -rf ~/.claude && mv $BACKUP_DIR ~/.claude)${NC}"
+fi
 
 echo -e "\n${CYAN}🚀 Next Steps:${NC}"
 echo -e "  1. Open Claude Code and run: ${YELLOW}/agents${NC}"

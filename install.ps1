@@ -13,6 +13,72 @@ Write-Host ""
 $CLAUDE_DIR = "$HOME\.claude"
 $BACKUP_DIR = "$HOME\.claude.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 $SCRIPT_DIR = $PSScriptRoot
+$BACKUP_CREATED = $false
+
+# Validation Functions
+
+# Function: Validate agent has proper YAML frontmatter
+function Validate-AgentFrontmatter {
+    param([string]$AgentFile)
+
+    $agentName = Split-Path -Leaf $AgentFile
+
+    # Check file size (> 100 bytes)
+    $fileSize = (Get-Item $AgentFile).Length
+    if ($fileSize -lt 100) {
+        Write-Host "  ✗ Invalid: $agentName (too small: ${fileSize}B)" -ForegroundColor Red
+        return $false
+    }
+
+    # Read file content
+    $content = Get-Content $AgentFile -Raw
+
+    # Check for YAML frontmatter
+    if ($content -notmatch '(?ms)^---\r?\n.*?\r?\n---') {
+        Write-Host "  ✗ Invalid: $agentName (no YAML frontmatter)" -ForegroundColor Red
+        return $false
+    }
+
+    # Extract frontmatter (between first two ---)
+    $frontmatter = ($content -split '---')[1]
+
+    # Check required fields
+    $requiredFields = @('name:', 'description:', 'tools:', 'model:')
+    foreach ($field in $requiredFields) {
+        if ($frontmatter -notmatch "(?m)^$field") {
+            Write-Host "  ✗ Invalid: $agentName (missing $field)" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    return $true
+}
+
+# Function: Detect if repository was cloned with git
+function Test-GitRepository {
+    if (-not (Test-Path (Join-Path $SCRIPT_DIR ".git"))) {
+        Write-Host "  ⚠ Not a git repository (downloaded as ZIP?)" -ForegroundColor Yellow
+        Write-Host "    Future updates via 'git pull' will not work" -ForegroundColor Yellow
+        Write-Host "    Recommended: git clone https://github.com/qepting91/claude-agent-suite.git" -ForegroundColor Cyan
+        $response = Read-Host "  Continue anyway? (y/N)"
+        if ($response -ne 'y' -and $response -ne 'Y') {
+            exit 0
+        }
+    }
+}
+
+# Function: Rollback on failure
+function Invoke-Rollback {
+    Write-Host "`nInstallation failed! Rolling back..." -ForegroundColor Red
+    if ($BACKUP_CREATED) {
+        Remove-Item -Recurse -Force $CLAUDE_DIR -ErrorAction SilentlyContinue
+        Move-Item $BACKUP_DIR $CLAUDE_DIR
+        Write-Host "Rollback complete. Original configuration restored." -ForegroundColor Green
+    } else {
+        Write-Host "No backup to restore (was fresh install)." -ForegroundColor Yellow
+    }
+    exit 1
+}
 
 # Check if Claude Code is installed
 Write-Host "[1/6] Checking prerequisites..." -ForegroundColor Yellow
@@ -26,18 +92,35 @@ try {
     exit 1
 }
 
+# Check repository type
+Test-GitRepository
+
 # Create backup
 Write-Host "`n[2/6] Creating backup..." -ForegroundColor Yellow
 if (Test-Path $CLAUDE_DIR) {
+    Write-Host "  Creating backup: $BACKUP_DIR" -ForegroundColor Cyan
     try {
         Copy-Item -Recurse $CLAUDE_DIR $BACKUP_DIR
-        Write-Host "  ✓ Backup created: $BACKUP_DIR" -ForegroundColor Green
+
+        # Verify backup
+        if (Test-Path $BACKUP_DIR) {
+            $backupAgentCount = @(Get-ChildItem -Path "$BACKUP_DIR\agents" -Filter "*.md" -ErrorAction SilentlyContinue).Count
+            $originalAgentCount = @(Get-ChildItem -Path "$CLAUDE_DIR\agents" -Filter "*.md" -ErrorAction SilentlyContinue).Count
+
+            if (($backupAgentCount -eq $originalAgentCount) -or ($originalAgentCount -eq 0)) {
+                $BACKUP_CREATED = $true
+                Write-Host "  ✓ Backup created and verified" -ForegroundColor Green
+            } else {
+                Write-Host "  ✗ Backup verification failed!" -ForegroundColor Red
+                exit 1
+            }
+        }
     } catch {
         Write-Host "  ✗ Failed to create backup: $_" -ForegroundColor Red
         exit 1
     }
 } else {
-    Write-Host "  ℹ No existing .claude directory found (fresh install)" -ForegroundColor Cyan
+    Write-Host "  ℹ No .claude directory found (fresh install, no backup needed)" -ForegroundColor Cyan
 }
 
 # Create directories
@@ -55,17 +138,59 @@ foreach ($dir in $directories) {
     }
 }
 
-# Copy agents
+# Copy agents with validation
 Write-Host "`n[4/6] Installing agents..." -ForegroundColor Yellow
+
+$EXPECTED_AGENTS = 15
+$COPIED_AGENTS = 0
+
 $agentsSource = Join-Path $SCRIPT_DIR "agents"
 if (Test-Path $agentsSource) {
+    # Validate all agents first
+    Write-Host "  Validating agent files..." -ForegroundColor Cyan
     $agentFiles = Get-ChildItem -Path $agentsSource -Filter "*.md"
     foreach ($file in $agentFiles) {
-        Copy-Item -Force $file.FullName "$CLAUDE_DIR\agents\"
-        Write-Host "  ✓ Installed: $($file.Name)" -ForegroundColor Green
+        if (-not (Validate-AgentFrontmatter -AgentFile $file.FullName)) {
+            Write-Host "  Validation failed! Repository may be corrupted." -ForegroundColor Red
+            Invoke-Rollback
+        }
     }
+
+    # Copy validated agents
+    Write-Host "  Copying agents..." -ForegroundColor Cyan
+    foreach ($file in $agentFiles) {
+        $destPath = Join-Path "$CLAUDE_DIR\agents" $file.Name
+
+        try {
+            Copy-Item -Force $file.FullName "$CLAUDE_DIR\agents\"
+
+            # Verify copy succeeded
+            if (Test-Path $destPath) {
+                $COPIED_AGENTS++
+                Write-Host "  ✓ Installed: $($file.Name)" -ForegroundColor Green
+            } else {
+                Write-Host "  ✗ Copy verification failed: $($file.Name)" -ForegroundColor Red
+                Invoke-Rollback
+            }
+        } catch {
+            Write-Host "  ✗ Failed to copy: $($file.Name)" -ForegroundColor Red
+            Invoke-Rollback
+        }
+    }
+
+    # Verify expected count
+    if ($COPIED_AGENTS -ne $EXPECTED_AGENTS) {
+        Write-Host "  ✗ Agent count mismatch! Expected $EXPECTED_AGENTS, got $COPIED_AGENTS" -ForegroundColor Red
+        Invoke-Rollback
+    }
+
+    Write-Host "  ✓ All $COPIED_AGENTS agents installed successfully" -ForegroundColor Green
 } else {
-    Write-Host "  ✗ Agents directory not found!" -ForegroundColor Red
+    Write-Host "  ✗ Agents directory not found: $agentsSource" -ForegroundColor Red
+    Write-Host "  Common causes:" -ForegroundColor Cyan
+    Write-Host "    • Downloaded as ZIP (not git clone)" -ForegroundColor Gray
+    Write-Host "    • Running from wrong directory" -ForegroundColor Gray
+    Write-Host "    • Incomplete download" -ForegroundColor Gray
     exit 1
 }
 
@@ -111,7 +236,12 @@ Write-Host "`n📊 Installation Summary:" -ForegroundColor Cyan
 $agentCount = (Get-ChildItem -Path "$CLAUDE_DIR\agents" -Filter "*.md").Count
 Write-Host "  • Agents installed: $agentCount" -ForegroundColor White
 Write-Host "  • Configuration: $CLAUDE_DIR" -ForegroundColor White
-Write-Host "  • Backup location: $BACKUP_DIR" -ForegroundColor White
+
+# Only show backup if one was created
+if ($BACKUP_CREATED) {
+    Write-Host "  • Backup location: $BACKUP_DIR" -ForegroundColor White
+    Write-Host "    (Restore: Remove-Item -Recurse ~/.claude; Move-Item $BACKUP_DIR ~/.claude)" -ForegroundColor Gray
+}
 
 Write-Host "`n🚀 Next Steps:" -ForegroundColor Cyan
 Write-Host "  1. Open Claude Code and run: /agents" -ForegroundColor White
