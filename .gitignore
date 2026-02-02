@@ -1,0 +1,48 @@
+# Claude Code Agent Suite - .gitignore
+
+# Sensitive files - NEVER commit these
+.credentials.json
+*.env
+*.pem
+*.key
+secrets/
+
+# User-specific local overrides
+*.local.*
+.claude.local/
+
+# Database connection strings with credentials
+.mcp.json.local
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test outputs
+*.log
+test-output/
+
+# Node modules (if you add any tooling)
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
