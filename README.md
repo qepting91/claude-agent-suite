@@ -34,6 +34,13 @@ A comprehensive, production-ready collection of specialized AI agents, security 
 - Best practices for agent development
 - Workflow recommendations
 
+### Modern Build System
+- **Jinja2-based template compilation** with reusable skill components
+- **Automated validation**: Token budgets, bash syntax, dangerous commands
+- **Comprehensive test suite** with >90% coverage (pytest)
+- **CI/CD pipeline** on 3 platforms, 4 Python versions (GitHub Actions)
+- **Quality assurance**: Linters (black, isort, flake8), type checking (mypy)
+
 ---
 
 ## 🚀 Quick Start
@@ -144,16 +151,25 @@ If you prefer manual control:
    cp -r ~/.claude ~/.claude.backup.$(date +%Y%m%d-%H%M%S)
    ```
 
-3. **Copy agents:**
+3. **Build agents (required for manual install):**
    ```bash
-   # Windows (PowerShell)
-   Copy-Item -Recurse agents\* $HOME\.claude\agents\
+   # Install build dependencies
+   pip install -r requirements.txt
 
-   # Linux/Mac
-   cp -r agents/* ~/.claude/agents/
+   # Compile templates to production agents
+   python scripts/build.py --verbose
    ```
 
-4. **Copy documentation:**
+4. **Copy compiled agents:**
+   ```bash
+   # Windows (PowerShell)
+   Copy-Item -Recurse dist\agents\* $HOME\.claude\agents\
+
+   # Linux/Mac
+   cp -r dist/agents/* ~/.claude/agents/
+   ```
+
+5. **Copy documentation:**
    ```bash
    # Windows (PowerShell)
    Copy-Item docs\* $HOME\.claude\
@@ -531,10 +547,15 @@ A: The postgres-dba, mysql-expert, and mongo-architect agents require MCP server
 
 ## 📊 What Gets Installed
 
+The installation process compiles templates and installs production agents:
+
 ```
+Build Process:
+  src/agents/*.md.j2 → [scripts/build.py] → dist/agents/*.md → ~/.claude/agents/
+
 ~/.claude/
-├── agents/                          (15 specialized agents)
-│   ├── python-architect.md
+├── agents/                          # 15 compiled agents
+│   ├── python-architect.md          # From dist/agents/ (compiled from src/agents/python-architect.md.j2)
 │   ├── go-expert.md
 │   ├── node-engineer.md
 │   ├── backend-engineer.md
@@ -550,29 +571,63 @@ A: The postgres-dba, mysql-expert, and mongo-architect agents require MCP server
 │   ├── secure-code-reviewer.md
 │   └── prompt-engineer.md
 │
-├── AGENT_TEAM_GUIDE.md             (Complete reference)
-├── integrate-trailofbits.md        (Security skills guide)
-└── (settings.json hooks merged)
+├── AGENT_TEAM_GUIDE.md             # Complete reference
+├── integrate-trailofbits.md        # Security skills guide
+└── settings.json                    # Hooks merged (preserves existing config)
 ```
+
+**Note**: Users receive compiled agents from `dist/agents/`, not source templates from `src/agents/`.
 
 ---
 
 ## 🧪 Development & Testing
 
+### Project Architecture
+
+This project uses a **template-based build system** to compile specialized AI agents:
+
+**Architecture Overview**:
+```
+Development Flow:
+  src/agents/*.md.j2  →  scripts/build.py  →  dist/agents/*.md  →  ~/.claude/agents/
+  (edit these)           (compiler)           (generated)         (user installation)
+```
+
+**Directory Structure**:
+```
+src/agents/          # Source templates (edit these) - Jinja2 templates with includes
+src/skills/          # Reusable components - Shared patterns via {% include %}
+scripts/build.py     # Build system - Jinja2 compiler + validation
+dist/agents/         # Compiled output (generated) - Production-ready agents
+agents/              # Legacy (will be removed) - Old static files
+tests/               # Test suite - Pytest unit + integration tests
+config/              # Build configuration - Validation rules, dangerous commands
+```
+
 ### Build System
 
-This project uses a Jinja2-based template system to compile agents:
+The build system compiles templates and validates output:
 
 ```bash
 # Build all agents from templates
 python scripts/build.py
 
-# Validate templates without building
-python scripts/build.py --validate-only
-
 # Build with verbose output
 python scripts/build.py --verbose
+
+# Validate templates without building
+python scripts/build.py --validate-only
 ```
+
+**What the build system does**:
+1. Discovers templates in `src/agents/*.md.j2`
+2. Renders Jinja2 templates with variables and includes
+3. Validates frontmatter (required fields, valid model)
+4. Enforces token budget (max 2500 tokens per agent)
+5. Validates bash syntax in code blocks
+6. Detects dangerous command patterns (rm -rf /, chmod 777, etc.)
+7. Writes production agents to `dist/agents/*.md`
+8. Reports statistics and errors
 
 ### Running Tests
 
@@ -619,11 +674,33 @@ See `tests/README.md` for detailed testing documentation.
 
 ### Agent Development Workflow
 
-1. Edit templates in `src/agents/*.md.j2`
-2. Create reusable skills in `src/skills/`
-3. Run `python scripts/build.py` to compile
-4. Test the compiled agents in `dist/agents/`
-5. Commit source files (templates), not compiled output
+**Important**: Always edit source templates in `src/agents/`, never compiled output in `dist/agents/`.
+
+1. **Edit templates**: `src/agents/*.md.j2` (Jinja2 templates)
+2. **Create skills** (optional): `src/skills/category/module.md` (reusable components)
+3. **Build**: `python scripts/build.py --verbose` (compile templates)
+4. **Test output**: Review `dist/agents/*.md` (compiled agents)
+5. **Test locally** (optional): `cp dist/agents/agent-name.md ~/.claude/agents/`
+6. **Run tests**: `pytest` (all tests must pass)
+7. **Validate build**: `python scripts/build.py --validate-only`
+8. **Commit source only**: `git add src/agents/` (never commit `dist/` directory)
+9. **Submit PR**: GitHub Actions will validate your changes
+
+### What to Commit
+
+**DO commit**:
+- ✅ `src/agents/*.md.j2` (source templates)
+- ✅ `src/skills/**/*.md` (reusable components)
+- ✅ `tests/**/*.py` (test files)
+- ✅ `scripts/build.py` (build system changes)
+- ✅ Documentation updates (README, CLAUDE.md, etc.)
+
+**DO NOT commit**:
+- ❌ `dist/agents/*.md` (generated files, git-ignored)
+- ❌ `.coverage`, `htmlcov/` (test outputs, git-ignored)
+- ❌ `__pycache__/`, `*.pyc` (Python cache, git-ignored)
+
+**Why?** The `dist/` directory contains build artifacts that can be regenerated from source. Committing them would clutter git history and cause merge conflicts.
 
 ---
 
