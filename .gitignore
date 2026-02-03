@@ -46,3 +46,6 @@ __pycache__/
 tmp/
 temp/
 *.tmp
+
+# Build system outputs (generated, not source)
+dist/

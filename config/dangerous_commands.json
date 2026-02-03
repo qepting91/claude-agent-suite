@@ -1,0 +1,78 @@
+{
+  "description": "Regex patterns for catastrophic bash commands that should be blocked or warned about",
+  "version": "1.0.0",
+  "categories": {
+    "destructive_filesystem": {
+      "severity": "critical",
+      "patterns": [
+        "rm\\s+-rf\\s+/",
+        "rm\\s+-rf\\s+\\*",
+        "rm\\s+-rf\\s+~",
+        "mkfs\\.",
+        ">\\s*/dev/sd[a-z]",
+        "dd\\s+.*of=/dev/sd[a-z]"
+      ],
+      "description": "Commands that can destroy filesystem or data"
+    },
+    "system_modification": {
+      "severity": "high",
+      "patterns": [
+        "chmod\\s+-R\\s+777",
+        "chown\\s+-R\\s+root",
+        "systemctl\\s+disable",
+        "service\\s+.*\\s+stop",
+        "iptables\\s+-F"
+      ],
+      "description": "Commands that modify system security or services"
+    },
+    "fork_bombs": {
+      "severity": "critical",
+      "patterns": [
+        ":\\(\\)\\{.*:\\|:.*\\}",
+        "fork\\s*\\(\\s*\\)\\s*while",
+        "while\\s+true.*do.*done.*&"
+      ],
+      "description": "Fork bombs and infinite loops"
+    },
+    "credential_exposure": {
+      "severity": "high",
+      "patterns": [
+        "echo\\s+.*password",
+        "export\\s+.*TOKEN=",
+        "export\\s+.*API_KEY=",
+        "git\\s+.*http://.*:.*@",
+        "curl\\s+.*-u\\s+[^$]"
+      ],
+      "description": "Commands that may expose credentials in logs"
+    },
+    "network_exfiltration": {
+      "severity": "high",
+      "patterns": [
+        "nc\\s+-.*\\d+\\.\\d+\\.\\d+\\.\\d+",
+        "wget\\s+http://\\d+\\.\\d+\\.\\d+\\.\\d+",
+        "curl\\s+.*\\|\\s*sh",
+        "curl\\s+.*\\|\\s*bash"
+      ],
+      "description": "Commands that may exfiltrate data or download malicious code"
+    },
+    "git_destructive": {
+      "severity": "high",
+      "patterns": [
+        "git\\s+push\\s+.*--force",
+        "git\\s+reset\\s+--hard\\s+HEAD",
+        "git\\s+clean\\s+-fd",
+        "git\\s+checkout\\s+\\."
+      ],
+      "description": "Destructive git operations"
+    }
+  },
+  "allowlist": {
+    "description": "Safe patterns that should not trigger warnings",
+    "patterns": [
+      "rm\\s+-rf\\s+\\./build",
+      "rm\\s+-rf\\s+\\./dist",
+      "rm\\s+-rf\\s+\\./node_modules",
+      "rm\\s+-rf\\s+\\./\\w+_cache"
+    ]
+  }
+}

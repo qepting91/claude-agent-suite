@@ -1,0 +1,28 @@
+# Build System Configuration
+# Claude Agent Suite - Compiler Settings
+
+build:
+  source_dir: "src/agents"
+  output_dir: "dist/agents"
+  skills_dir: "src/skills"
+
+validation:
+  max_tokens: 2500              # Token budget per agent
+  required_frontmatter:
+    - name
+    - description
+    - tools
+    - model
+
+  allowed_models:
+    - sonnet
+    - haiku
+    - opus
+
+templates:
+  file_extension: ".md.j2"       # Source template extension
+  output_extension: ".md"        # Compiled output extension
+
+logging:
+  verbose: false
+  show_warnings: true
