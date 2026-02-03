@@ -40,7 +40,15 @@ node_modules/
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
 .pytest_cache/
+
+# Test coverage
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+*.cover
 
 # Temporary files
 tmp/

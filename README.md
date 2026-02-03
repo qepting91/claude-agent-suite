@@ -557,13 +557,73 @@ A: The postgres-dba, mysql-expert, and mongo-architect agents require MCP server
 
 ---
 
+## 🧪 Development & Testing
+
+### Build System
+
+This project uses a Jinja2-based template system to compile agents:
+
+```bash
+# Build all agents from templates
+python scripts/build.py
+
+# Validate templates without building
+python scripts/build.py --validate-only
+
+# Build with verbose output
+python scripts/build.py --verbose
+```
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=scripts --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+```
+
+### Using Make (Linux/Mac)
+
+```bash
+# Show all available commands
+make help
+
+# Run tests
+make test
+
+# Build agents
+make build
+
+# Run code linters
+make lint
+```
+
+See `tests/README.md` for detailed testing documentation.
+
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Add your agent/skill with documentation
-4. Test thoroughly
-5. Submit a pull request
+4. **Run tests**: `pytest` (all tests must pass)
+5. **Validate build**: `python scripts/build.py --validate-only`
+6. Submit a pull request
+
+### Agent Development Workflow
+
+1. Edit templates in `src/agents/*.md.j2`
+2. Create reusable skills in `src/skills/`
+3. Run `python scripts/build.py` to compile
+4. Test the compiled agents in `dist/agents/`
+5. Commit source files (templates), not compiled output
 
 ---
 
