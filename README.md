@@ -43,6 +43,116 @@ A comprehensive, production-ready collection of specialized AI agents, security 
 
 ---
 
+## 🔄 CI/CD & Compliance
+
+This project includes enterprise-grade CI/CD with automated testing, security scanning, and compliance auditing.
+
+### GitHub Actions Workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `test.yml` | Push/PR | Multi-platform tests (Ubuntu, Windows, macOS) |
+| `security.yml` | Push/PR | Security scanning (Semgrep, Bandit, pip-audit) |
+| `release.yml` | Tags (v*) | Build, test, package, and publish releases |
+| `audit-log.yml` | After release | Archive evidence to immutable branch |
+
+### Code Analysis Checks
+
+Every push and PR runs comprehensive code analysis:
+
+**Static Analysis:**
+- **Semgrep** - SAST scanning for security vulnerabilities (OWASP patterns)
+- **Bandit** - Python-specific security linter
+- **Ruff** - Fast Python linter (replaces flake8)
+
+**Dependency Security:**
+- **pip-audit** - Scans for known CVEs in Python dependencies
+- **Safety** - Additional vulnerability database checks
+
+**Code Quality:**
+- **Black** - Code formatting
+- **isort** - Import sorting
+- **mypy** - Type checking
+- **flake8** - Style guide enforcement
+
+**Build Validation:**
+- Token budget enforcement (max 2500 tokens per agent)
+- Bash syntax validation in code blocks
+- Dangerous command detection (rm -rf /, chmod 777, etc.)
+- YAML frontmatter validation
+
+### Intelligence Testing (Promptfoo)
+
+On tagged releases, agents are tested against real AI models:
+
+```bash
+# Run locally
+make eval
+
+# Configuration
+eval/promptfoo.yaml         # Test configuration
+eval/datasets/smoke-tests.jsonl  # Test cases
+```
+
+Tests validate agents can correctly handle:
+- Python architecture questions
+- Security code review scenarios
+- API design best practices
+
+### Automated Releases
+
+Create a release with:
+
+```bash
+# Tag and push
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+
+# Or use Makefile helper
+make release-tag V=1.0.0
+```
+
+**Release workflow:**
+1. ✅ Builds all 16 agents from templates
+2. ✅ Runs full test suite
+3. ✅ Runs intelligence tests (optional, if API key set)
+4. ✅ Creates `claude-agents-vX.X.X.zip` package
+5. ✅ Publishes to GitHub Releases
+6. ✅ Archives audit evidence
+
+### Immutable Audit Trail
+
+Every release creates a SHA256 evidence manifest on the `evidence-audit` branch:
+
+```json
+{
+  "metadata": {
+    "timestamp": "2026-02-05T21:00:00Z",
+    "git_sha": "abc123...",
+    "git_tag": "v0.0.5"
+  },
+  "artifacts": {
+    "agents": [
+      {"file": "python-architect.md", "sha256": "e3b0c44..."}
+    ],
+    "security_config": {
+      "dangerous_commands_sha256": "..."
+    }
+  }
+}
+```
+
+**Branch Protection:** Enable protection on `evidence-audit` (no force pushes, no deletions) for compliance.
+
+### Required Secrets
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `GITHUB_TOKEN` | Auto | Provided by GitHub, used for releases |
+| `ANTHROPIC_API_KEY` | Optional | For Promptfoo intelligence tests |
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
