@@ -113,6 +113,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Call audit workflow after successful publish
+  audit:
+    name: Archive Audit Evidence
+    needs: publish
+    uses: ./.github/workflows/audit-log.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+
   draft-release:
     name: Draft Release (Main Branch)
     needs: build

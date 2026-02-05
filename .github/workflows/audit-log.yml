@@ -1,8 +1,19 @@
 name: Audit Log
 
 on:
-  release:
-    types: [published]
+  # Can be called from release.yml workflow
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+  # Can also be triggered manually
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to audit (e.g., v0.0.3)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -62,7 +73,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          RELEASE_TAG="${{ inputs.release_tag }}"
           EVIDENCE_FILE="audit-${RELEASE_TAG}.json"
           
           # Copy evidence file with release tag name
@@ -83,8 +94,8 @@ jobs:
         run: |
           echo "## Audit Evidence Archived" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Evidence File:** audit-${{ github.event.release.tag_name }}.json" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ inputs.release_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Evidence File:** audit-${{ inputs.release_tag }}.json" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch:** evidence-audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "⚠️ **Remember:** Enable branch protection on \`evidence-audit\` (no force pushes)" >> $GITHUB_STEP_SUMMARY
