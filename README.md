@@ -3,6 +3,7 @@
 A comprehensive, production-ready collection of specialized AI agents, security skills, and development tools for Claude Code.
 
 **Repository:** https://github.com/qepting91/claude-agent-suite
+**Documentation:** https://qepting91.github.io/claude-agent-suite/
 
 ## 🎯 What's Included
 
@@ -106,11 +107,11 @@ Create a release with:
 
 ```bash
 # Tag and push
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
+git tag -a v0.0.6 -m "Release v0.0.6"
+git push origin v0.0.6
 
 # Or use Makefile helper
-make release-tag V=1.0.0
+make release-tag V=0.0.6
 ```
 
 **Release workflow:**
@@ -855,7 +856,7 @@ MIT License
 
 ---
 
-**Version:** 1.0.0
+**Version:** 0.0.5
 **Last Updated:** 2026-02-02
 **Status:** ✅ Production Ready
 
