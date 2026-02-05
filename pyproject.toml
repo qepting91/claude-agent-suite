@@ -1,2 +1,12 @@
 [tool.isort]
 profile = "black"
+
+[tool.ruff.lint]
+select = ["E", "F", "S"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "F401", "F841"]
+# S101: Use of assert (normal in pytest)
+# F401: Unused imports (fixtures imported but used by pytest)
+# F841: Assigned but unused (exit_code in test validations)

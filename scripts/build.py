@@ -12,7 +12,6 @@ Usage:
 """
 
 import json
-import os
 import re
 import subprocess
 import sys
@@ -72,12 +71,13 @@ class AgentBuilder:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Setup Jinja2 with src/ as the root
-        self.env = Environment(
+        self.env = Environment(  # noqa: S701
             loader=FileSystemLoader(str(self.root_dir / "src")),
             trim_blocks=True,
             lstrip_blocks=True,
             keep_trailing_newline=True,
         )
+        # S701: autoescape disabled intentionally - generating Markdown, not HTML
 
         # Add build context variables
         self.build_context = {
@@ -197,12 +197,13 @@ class AgentBuilder:
         """
         try:
             result = subprocess.run(
-                ["bash", "-n"],
+                ["bash", "-n"],  # noqa: S607
                 input=bash_code,
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
+            # S607: bash is a standard system command, partial path is acceptable
             if result.returncode == 0:
                 return True, ""
             else:
