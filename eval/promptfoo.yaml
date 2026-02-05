@@ -7,11 +7,11 @@ providers:
       temperature: 0
       max_tokens: 1024
 
-# Test the compiled agent prompts
+# Test the compiled agent prompts (built by scripts/build.py to .claude/agents/)
 prompts:
-  - file://dist/agents/python-architect.md
-  - file://dist/agents/secure-code-reviewer.md
-  - file://dist/agents/backend-engineer.md
+  - file://../.claude/agents/python-architect.md
+  - file://../.claude/agents/secure-code-reviewer.md
+  - file://../.claude/agents/backend-engineer.md
 
 # Test datasets
 tests:
