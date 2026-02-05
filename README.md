@@ -55,6 +55,7 @@ This project includes enterprise-grade CI/CD with automated testing, security sc
 | `security.yml` | Push/PR | Security scanning (Semgrep, Bandit, pip-audit) |
 | `release.yml` | Tags (v*) | Build, test, package, and publish releases |
 | `audit-log.yml` | After release | Archive evidence to immutable branch |
+| `docs.yml` | Push to docs-site/ | Build and deploy documentation to GitHub Pages |
 
 ### Code Analysis Checks
 
@@ -150,6 +151,24 @@ Every release creates a SHA256 evidence manifest on the `evidence-audit` branch:
 |--------|----------|---------|
 | `GITHUB_TOKEN` | Auto | Provided by GitHub, used for releases |
 | `ANTHROPIC_API_KEY` | Optional | For Promptfoo intelligence tests |
+
+### Documentation Site
+
+Documentation is built with Docusaurus and auto-deployed to GitHub Pages:
+
+**Live Site:** https://qepting91.github.io/claude-agent-suite/
+
+**Run locally:**
+```bash
+cd docs-site
+npm install
+npm start        # Opens http://localhost:3000
+```
+
+**Generate agent library:**
+```bash
+node scripts/doc-gen.mjs
+```
 
 ---
 
