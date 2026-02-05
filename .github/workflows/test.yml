@@ -100,13 +100,13 @@ jobs:
     - name: Validate build output
       run: |
         # Check that output files were created
-        if [ ! -d "dist/agents" ]; then
-          echo "Error: dist/agents directory not created"
+        if [ ! -d ".claude/agents" ]; then
+          echo "Error: .claude/agents directory not created"
           exit 1
         fi
 
         # Count output files
-        file_count=$(find dist/agents -name "*.md" -type f | wc -l)
+        file_count=$(find .claude/agents -name "*.md" -type f | wc -l)
         if [ "$file_count" -eq 0 ]; then
           echo "Error: No agent files generated"
           exit 1
@@ -118,5 +118,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: built-agents
-        path: dist/agents/*.md
+        path: .claude/agents/*.md
         retention-days: 7
