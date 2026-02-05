@@ -1,4 +1,4 @@
-.PHONY: help test test-unit test-integration test-coverage test-verbose install clean build lint format
+.PHONY: help test test-unit test-integration test-coverage test-verbose install clean build lint format package release-tag
 
 help:
 	@echo "Claude Agent Suite - Make Commands"
@@ -17,6 +17,10 @@ help:
 	@echo "  make validate          - Validate templates without building"
 	@echo "  make lint              - Run code linters"
 	@echo "  make format            - Format code with black and isort"
+	@echo ""
+	@echo "Release:"
+	@echo "  make package           - Create release zip package"
+	@echo "  make release-tag V=x.y.z - Create and push release tag"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean             - Remove build artifacts and cache files"
@@ -52,6 +56,15 @@ build-verbose:
 validate:
 	python scripts/build.py --validate-only
 
+# Intelligence testing targets
+eval: build
+	@echo "Running intelligence tests with Promptfoo..."
+	npx --yes promptfoo@latest eval -c eval/promptfoo.yaml
+
+eval-ci: build
+	@echo "Running intelligence tests (CI mode)..."
+	npx --yes promptfoo@latest eval -c eval/promptfoo.yaml --output eval/results.json
+
 # Code quality targets
 lint:
 	@echo "Running flake8..."
@@ -80,3 +93,22 @@ clean-test:
 	rm -rf htmlcov/
 	rm -rf .coverage
 	rm -f coverage.xml
+
+# Release targets
+package: build
+	@echo "Creating release package..."
+	mkdir -p dist/agents
+	cp .claude/agents/*.md dist/agents/
+	cp config/dangerous_commands.json dist/
+	cp config/settings.json dist/
+	cd dist && zip -r ../claude-agents.zip .
+	@echo "Package created: claude-agents.zip"
+
+release-tag:
+ifndef V
+	$(error Version not set. Usage: make release-tag V=1.0.0)
+endif
+	@echo "Creating release tag v$(V)..."
+	git tag -a v$(V) -m "Release v$(V)"
+	git push origin v$(V)
+	@echo "Tag v$(V) pushed. GitHub Actions will create the release."

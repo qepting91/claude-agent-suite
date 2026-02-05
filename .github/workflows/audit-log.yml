@@ -1,0 +1,90 @@
+name: Audit Log
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  archive-evidence:
+    name: Archive Release Evidence
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build agents for evidence
+        run: python scripts/build.py
+
+      - name: Generate evidence manifest
+        run: |
+          chmod +x scripts/generate-evidence.sh
+          mkdir -p dist/agents
+          cp .claude/agents/*.md dist/agents/
+          bash scripts/generate-evidence.sh evidence.json
+
+      - name: Checkout or create evidence-audit branch
+        run: |
+          git fetch origin evidence-audit || true
+          if git show-ref --verify --quiet refs/remotes/origin/evidence-audit; then
+            git checkout evidence-audit
+          else
+            git checkout --orphan evidence-audit
+            git rm -rf . || true
+            echo "# Compliance Audit Trail" > README.md
+            echo "" >> README.md
+            echo "This branch contains immutable evidence manifests for each release." >> README.md
+            echo "Each JSON file contains SHA256 hashes of all released artifacts." >> README.md
+            echo "" >> README.md
+            echo "**DO NOT MODIFY OR DELETE FILES IN THIS BRANCH**" >> README.md
+            git add README.md
+            git commit -m "Initialize audit trail branch"
+          fi
+
+      - name: Archive evidence for release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+          EVIDENCE_FILE="audit-${RELEASE_TAG}.json"
+          
+          # Copy evidence file with release tag name
+          cp evidence.json "$EVIDENCE_FILE"
+          
+          # Configure git
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # Add and commit
+          git add "$EVIDENCE_FILE"
+          git commit -m "Audit: ${RELEASE_TAG} - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          
+          # Push to evidence-audit branch
+          git push origin evidence-audit
+
+      - name: Summary
+        run: |
+          echo "## Audit Evidence Archived" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release:** ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Evidence File:** audit-${{ github.event.release.tag_name }}.json" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** evidence-audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Remember:** Enable branch protection on \`evidence-audit\` (no force pushes)" >> $GITHUB_STEP_SUMMARY

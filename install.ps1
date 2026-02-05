@@ -2,7 +2,20 @@
 # Author: @qepting91
 # Repository: https://github.com/qepting91/claude-agent-suite
 
+param(
+    [switch]$LocalBuild,
+    [switch]$Help
+)
+
 $ErrorActionPreference = "Stop"
+
+if ($Help) {
+    Write-Host "Usage: .\install.ps1 [OPTIONS]"
+    Write-Host "Options:"
+    Write-Host "  -LocalBuild    Build agents locally using Python (requires Python 3.10+)"
+    Write-Host "  -Help          Show this help message"
+    exit 0
+}
 
 Write-Host "`n=====================================" -ForegroundColor Cyan
 Write-Host "Claude Code Agent Suite Installer" -ForegroundColor Cyan
@@ -14,6 +27,7 @@ $CLAUDE_DIR = "$HOME\.claude"
 $BACKUP_DIR = "$HOME\.claude.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 $SCRIPT_DIR = $PSScriptRoot
 $BACKUP_CREATED = $false
+$GITHUB_RELEASE_URL = "https://github.com/qepting91/claude-agent-suite/releases/latest/download/claude-agents.zip"
 
 # Validation Functions
 
@@ -138,35 +152,96 @@ foreach ($dir in $directories) {
     }
 }
 
-# Build agents from source templates
-Write-Host "`n[4/7] Building agents from source..." -ForegroundColor Yellow
-Write-Host "  Running build system (scripts/build.py)..." -ForegroundColor Cyan
+# Get agents (download from GitHub Release or build locally)
+if ($LocalBuild) {
+    Write-Host "`n[4/7] Building agents locally..." -ForegroundColor Yellow
+    Write-Host "  Running build system (scripts/build.py)..." -ForegroundColor Cyan
 
-# Check if Python is available
-$pythonCmd = $null
-if (Get-Command python3 -ErrorAction SilentlyContinue) {
-    $pythonCmd = "python3"
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    $pythonCmd = "python"
-} else {
-    Write-Host "  ✗ Python is not installed!" -ForegroundColor Red
-    Write-Host "  Python 3.10+ is required to build agents." -ForegroundColor Red
-    Invoke-Rollback
-}
-
-# Run the build system
-try {
-    Push-Location $SCRIPT_DIR
-    & $pythonCmd scripts/build.py
-    if ($LASTEXITCODE -ne 0) {
-        throw "Build failed with exit code $LASTEXITCODE"
+    # Check if Python is available
+    $pythonCmd = $null
+    if (Get-Command python3 -ErrorAction SilentlyContinue) {
+        $pythonCmd = "python3"
+    } elseif (Get-Command python -ErrorAction SilentlyContinue) {
+        $pythonCmd = "python"
+    } else {
+        Write-Host "  ✗ Python is not installed!" -ForegroundColor Red
+        Write-Host "  Python 3.10+ is required for local builds." -ForegroundColor Red
+        Invoke-Rollback
     }
-    Write-Host "  ✓ Build completed successfully" -ForegroundColor Green
-    Pop-Location
-} catch {
-    Write-Host "  ✗ Build failed!" -ForegroundColor Red
-    Pop-Location
-    Invoke-Rollback
+
+    # Run the build system
+    try {
+        Push-Location $SCRIPT_DIR
+        & $pythonCmd scripts/build.py
+        if ($LASTEXITCODE -ne 0) {
+            throw "Build failed with exit code $LASTEXITCODE"
+        }
+        Write-Host "  ✓ Build completed successfully" -ForegroundColor Green
+        Pop-Location
+    } catch {
+        Write-Host "  ✗ Build failed!" -ForegroundColor Red
+        Pop-Location
+        Invoke-Rollback
+    }
+} else {
+    Write-Host "`n[4/7] Downloading pre-built agents..." -ForegroundColor Yellow
+    Write-Host "  Fetching latest release from GitHub..." -ForegroundColor Cyan
+
+    $tempZip = Join-Path $env:TEMP "claude-agents-$(Get-Random).zip"
+    $downloadSuccess = $false
+
+    try {
+        Invoke-WebRequest -Uri $GITHUB_RELEASE_URL -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
+        $downloadSuccess = $true
+    } catch {
+        Write-Host "  ⚠ Download failed: $_" -ForegroundColor Yellow
+        Write-Host "  Falling back to local build..." -ForegroundColor Cyan
+    }
+
+    if ($downloadSuccess) {
+        try {
+            # Extract to script directory
+            $extractPath = Join-Path $SCRIPT_DIR ".claude"
+            if (-not (Test-Path $extractPath)) {
+                New-Item -ItemType Directory -Force -Path $extractPath | Out-Null
+            }
+            Expand-Archive -Path $tempZip -DestinationPath $extractPath -Force
+            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+            Write-Host "  ✓ Downloaded and extracted agents" -ForegroundColor Green
+        } catch {
+            Write-Host "  ⚠ Failed to extract: $_" -ForegroundColor Yellow
+            Write-Host "  Falling back to local build..." -ForegroundColor Cyan
+            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+            $downloadSuccess = $false
+        }
+    }
+
+    # Fallback to local build
+    if (-not $downloadSuccess) {
+        $pythonCmd = $null
+        if (Get-Command python3 -ErrorAction SilentlyContinue) {
+            $pythonCmd = "python3"
+        } elseif (Get-Command python -ErrorAction SilentlyContinue) {
+            $pythonCmd = "python"
+        } else {
+            Write-Host "  ✗ Python is not installed and download failed!" -ForegroundColor Red
+            Invoke-Rollback
+        }
+
+        try {
+            Push-Location $SCRIPT_DIR
+            & $pythonCmd scripts/build.py
+            if ($LASTEXITCODE -ne 0) {
+                throw "Build failed with exit code $LASTEXITCODE"
+            }
+            Write-Host "  ✓ Fallback build completed" -ForegroundColor Green
+            Pop-Location
+        } catch {
+            Write-Host "  ✗ Build failed!" -ForegroundColor Red
+            Pop-Location
+            Invoke-Rollback
+        }
+    }
 }
 
 # Copy agents with validation

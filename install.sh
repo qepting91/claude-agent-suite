@@ -24,6 +24,29 @@ CLAUDE_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude.backup.$(date +%Y%m%d-%H%M%S)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_CREATED=false
+LOCAL_BUILD=false
+GITHUB_RELEASE_URL="https://github.com/qepting91/claude-agent-suite/releases/latest/download/claude-agents.zip"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --local-build)
+      LOCAL_BUILD=true
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [OPTIONS]"
+      echo "Options:"
+      echo "  --local-build    Build agents locally using Python (requires Python 3.10+)"
+      echo "  -h, --help       Show this help message"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
 
 # Validation Functions
 
@@ -130,24 +153,74 @@ echo -e "\n${YELLOW}[3/7] Creating directories...${NC}"
 mkdir -p "$CLAUDE_DIR/agents"
 echo -e "${GREEN}  ✓ Created: $CLAUDE_DIR/agents${NC}"
 
-# Build agents from source templates
-echo -e "\n${YELLOW}[4/6] Building agents from source...${NC}"
-echo -e "${CYAN}  Running build system (scripts/build.py)...${NC}"
+# Get agents (download from GitHub Release or build locally)
+if [ "$LOCAL_BUILD" = true ]; then
+    echo -e "\n${YELLOW}[4/6] Building agents locally...${NC}"
+    echo -e "${CYAN}  Running build system (scripts/build.py)...${NC}"
 
-# Check if Python is available
-if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
-    echo -e "${RED}  ✗ Python is not installed!${NC}"
-    echo -e "${RED}  Python 3.10+ is required to build agents.${NC}"
-    rollback_installation
-fi
+    # Check if Python is available
+    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+        echo -e "${RED}  ✗ Python is not installed!${NC}"
+        echo -e "${RED}  Python 3.10+ is required for local builds.${NC}"
+        rollback_installation
+    fi
 
-# Run the build system
-PYTHON_CMD=$(command -v python3 || command -v python)
-if cd "$SCRIPT_DIR" && $PYTHON_CMD scripts/build.py; then
-    echo -e "${GREEN}  ✓ Build completed successfully${NC}"
+    # Run the build system
+    PYTHON_CMD=$(command -v python3 || command -v python)
+    if cd "$SCRIPT_DIR" && $PYTHON_CMD scripts/build.py; then
+        echo -e "${GREEN}  ✓ Build completed successfully${NC}"
+    else
+        echo -e "${RED}  ✗ Build failed!${NC}"
+        rollback_installation
+    fi
 else
-    echo -e "${RED}  ✗ Build failed!${NC}"
-    rollback_installation
+    echo -e "\n${YELLOW}[4/6] Downloading pre-built agents...${NC}"
+    echo -e "${CYAN}  Fetching latest release from GitHub...${NC}"
+
+    # Check for curl or wget
+    if command -v curl &> /dev/null; then
+        DOWNLOAD_CMD="curl -fsSL"
+    elif command -v wget &> /dev/null; then
+        DOWNLOAD_CMD="wget -qO-"
+    else
+        echo -e "${YELLOW}  ⚠ Neither curl nor wget found, falling back to local build${NC}"
+        LOCAL_BUILD=true
+    fi
+
+    if [ "$LOCAL_BUILD" = false ]; then
+        TEMP_ZIP="/tmp/claude-agents-$$.zip"
+        if $DOWNLOAD_CMD "$GITHUB_RELEASE_URL" > "$TEMP_ZIP" 2>/dev/null; then
+            # Extract to script directory
+            mkdir -p "$SCRIPT_DIR/.claude/agents"
+            if unzip -o "$TEMP_ZIP" -d "$SCRIPT_DIR/.claude" > /dev/null 2>&1; then
+                echo -e "${GREEN}  ✓ Downloaded and extracted agents${NC}"
+                rm -f "$TEMP_ZIP"
+            else
+                echo -e "${YELLOW}  ⚠ Failed to extract, falling back to local build${NC}"
+                rm -f "$TEMP_ZIP"
+                LOCAL_BUILD=true
+            fi
+        else
+            echo -e "${YELLOW}  ⚠ Download failed, falling back to local build${NC}"
+            LOCAL_BUILD=true
+        fi
+
+        # Fallback to local build if download failed
+        if [ "$LOCAL_BUILD" = true ]; then
+            echo -e "${CYAN}  Running local build as fallback...${NC}"
+            if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+                echo -e "${RED}  ✗ Python is not installed and download failed!${NC}"
+                rollback_installation
+            fi
+            PYTHON_CMD=$(command -v python3 || command -v python)
+            if cd "$SCRIPT_DIR" && $PYTHON_CMD scripts/build.py; then
+                echo -e "${GREEN}  ✓ Fallback build completed${NC}"
+            else
+                echo -e "${RED}  ✗ Build failed!${NC}"
+                rollback_installation
+            fi
+        fi
+    fi
 fi
 
 # Copy agents with validation
