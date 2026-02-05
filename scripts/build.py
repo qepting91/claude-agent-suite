@@ -32,83 +32,88 @@ init(autoreset=True)
 class AgentBuilder:
     """Builds agent markdown files from Jinja2 templates."""
 
-    def __init__(self, config_path: str = "config/build_config.yml", root_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        config_path: str = "config/build_config.yml",
+        root_dir: Optional[Path] = None,
+    ):
         """Initialize the builder with configuration."""
-        self.root_dir = root_dir if root_dir is not None else Path(__file__).parent.parent
+        self.root_dir = (
+            root_dir if root_dir is not None else Path(__file__).parent.parent
+        )
         self.config_path = self.root_dir / config_path
         self.config = self.load_config()
-        self.stats = {
-            'total': 0,
-            'success': 0,
-            'failed': 0,
-            'warnings': 0
-        }
+        self.stats = {"total": 0, "success": 0, "failed": 0, "warnings": 0}
         self.setup_environment()
 
     def load_config(self) -> Dict:
         """Load build configuration from YAML."""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-            self.log(f"[OK] Loaded configuration from {self.config_path}", 'success')
+            self.log(f"[OK] Loaded configuration from {self.config_path}", "success")
             return config
         except FileNotFoundError:
-            self.log(f"[ERROR] Configuration file not found: {self.config_path}", 'error')
+            self.log(
+                f"[ERROR] Configuration file not found: {self.config_path}", "error"
+            )
             sys.exit(1)
         except yaml.YAMLError as e:
-            self.log(f"[ERROR] Invalid YAML in config: {e}", 'error')
+            self.log(f"[ERROR] Invalid YAML in config: {e}", "error")
             sys.exit(1)
 
     def setup_environment(self):
         """Configure Jinja2 environment with src/ paths."""
-        self.source_dir = self.root_dir / self.config['build']['source_dir']
-        self.output_dir = self.root_dir / self.config['build']['output_dir']
-        self.skills_dir = self.root_dir / self.config['build']['skills_dir']
+        self.source_dir = self.root_dir / self.config["build"]["source_dir"]
+        self.output_dir = self.root_dir / self.config["build"]["output_dir"]
+        self.skills_dir = self.root_dir / self.config["build"]["skills_dir"]
 
         # Create output directory if it doesn't exist
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Setup Jinja2 with src/ as the root
         self.env = Environment(
-            loader=FileSystemLoader(str(self.root_dir / 'src')),
+            loader=FileSystemLoader(str(self.root_dir / "src")),
             trim_blocks=True,
             lstrip_blocks=True,
-            keep_trailing_newline=True
+            keep_trailing_newline=True,
         )
 
         # Add build context variables
         self.build_context = {
-            'build_timestamp': datetime.now().isoformat(),
-            'python_version': f"{sys.version_info.major}.{sys.version_info.minor}",
-            'builder_version': '1.0.0',
-            'include_skills': False  # Default, templates can override
+            "build_timestamp": datetime.now().isoformat(),
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
+            "builder_version": "1.0.0",
+            "include_skills": False,  # Default, templates can override
         }
 
-    def log(self, message: str, level: str = 'info'):
+    def log(self, message: str, level: str = "info"):
         """Log a colored message to console."""
         colors = {
-            'success': Fore.GREEN,
-            'error': Fore.RED,
-            'warning': Fore.YELLOW,
-            'info': Fore.CYAN,
-            'debug': Fore.LIGHTBLACK_EX
+            "success": Fore.GREEN,
+            "error": Fore.RED,
+            "warning": Fore.YELLOW,
+            "info": Fore.CYAN,
+            "debug": Fore.LIGHTBLACK_EX,
         }
-        color = colors.get(level, '')
+        color = colors.get(level, "")
         print(f"{color}{message}{Style.RESET_ALL}")
 
     def discover_templates(self) -> List[Path]:
         """Find all .md.j2 files in src/agents/."""
-        extension = self.config['templates']['file_extension']
+        extension = self.config["templates"]["file_extension"]
         templates = list(self.source_dir.glob(f"*{extension}"))
 
         if not templates:
-            self.log(f"[WARN] No templates found in {self.source_dir}", 'warning')
+            self.log(f"[WARN] No templates found in {self.source_dir}", "warning")
             return []
 
-        self.log(f"Found {len(templates)} template(s)", 'info')
+        self.log(f"Found {len(templates)} template(s)", "info")
         return templates
 
-    def compile_template(self, template_path: Path, verbose: bool = False) -> Tuple[bool, Optional[str]]:
+    def compile_template(
+        self, template_path: Path, verbose: bool = False
+    ) -> Tuple[bool, Optional[str]]:
         """
         Compile single template to dist/agents/.
 
@@ -120,11 +125,11 @@ class AgentBuilder:
         # Remove template extension (.j2) and get base name
         # If file is "agent.md.j2", stem gives "agent.md", then stem again gives "agent"
         template_name = relative_path.stem  # Remove .j2
-        if template_name.endswith('.md'):
+        if template_name.endswith(".md"):
             template_name = template_name[:-3]  # Remove .md if present
 
         # Output filename
-        output_ext = self.config['templates']['output_extension']
+        output_ext = self.config["templates"]["output_extension"]
         output_filename = f"{template_name}{output_ext}"
         output_path = self.output_dir / output_filename
 
@@ -139,30 +144,33 @@ class AgentBuilder:
             is_valid, errors = self.validate_output(rendered, output_filename)
 
             if not is_valid:
-                self.log(f"  [X] Validation failed: {template_name}", 'error')
+                self.log(f"  [X] Validation failed: {template_name}", "error")
                 for error in errors:
-                    self.log(f"    -> {error}", 'error')
+                    self.log(f"    -> {error}", "error")
                 return False, None
 
             # Write output
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 f.write(rendered)
 
             if verbose:
-                self.log(f"  [OK] {template_name} -> {output_path.relative_to(self.root_dir)}", 'success')
+                self.log(
+                    f"  [OK] {template_name} -> {output_path.relative_to(self.root_dir)}",
+                    "success",
+                )
             else:
-                self.log(f"  [OK] {template_name}", 'success')
+                self.log(f"  [OK] {template_name}", "success")
 
             return True, str(output_path)
 
         except TemplateNotFound as e:
-            self.log(f"  [X] Template not found: {e}", 'error')
+            self.log(f"  [X] Template not found: {e}", "error")
             return False, None
         except TemplateError as e:
-            self.log(f"  [X] Template error in {template_name}: {e}", 'error')
+            self.log(f"  [X] Template error in {template_name}: {e}", "error")
             return False, None
         except Exception as e:
-            self.log(f"  [X] Unexpected error compiling {template_name}: {e}", 'error')
+            self.log(f"  [X] Unexpected error compiling {template_name}: {e}", "error")
             return False, None
 
     def estimate_tokens(self, text: str) -> int:
@@ -177,7 +185,7 @@ class AgentBuilder:
         """Extract bash code blocks from markdown."""
         # Match ```bash or ```sh at line start, followed by code, then closing ```
         # Using MULTILINE flag so ^ matches line boundaries
-        pattern = r'^```(?:bash|sh)\n(.*?)\n```'
+        pattern = r"^```(?:bash|sh)\n(.*?)\n```"
         matches = re.findall(pattern, content, re.DOTALL | re.MULTILINE)
         # Filter out empty or whitespace-only blocks
         return [block.strip() for block in matches if block.strip()]
@@ -189,11 +197,11 @@ class AgentBuilder:
         """
         try:
             result = subprocess.run(
-                ['bash', '-n'],
+                ["bash", "-n"],
                 input=bash_code,
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             if result.returncode == 0:
                 return True, ""
@@ -217,26 +225,28 @@ class AgentBuilder:
         warnings = []
 
         # Load dangerous commands config
-        dangerous_config_path = self.root_dir / 'config' / 'dangerous_commands.json'
+        dangerous_config_path = self.root_dir / "config" / "dangerous_commands.json"
         if not dangerous_config_path.exists():
             return warnings
 
         try:
-            with open(dangerous_config_path, 'r') as f:
+            with open(dangerous_config_path, "r") as f:
                 dangerous_config = json.load(f)
         except Exception:
             return warnings
 
         # Check against patterns
-        for category_name, category in dangerous_config.get('categories', {}).items():
-            for pattern in category.get('patterns', []):
+        for category_name, category in dangerous_config.get("categories", {}).items():
+            for pattern in category.get("patterns", []):
                 if re.search(pattern, bash_code):
-                    warnings.append({
-                        'category': category_name,
-                        'severity': category.get('severity', 'medium'),
-                        'pattern': pattern,
-                        'description': category.get('description', '')
-                    })
+                    warnings.append(
+                        {
+                            "category": category_name,
+                            "severity": category.get("severity", "medium"),
+                            "pattern": pattern,
+                            "description": category.get("description", ""),
+                        }
+                    )
 
         return warnings
 
@@ -251,7 +261,7 @@ class AgentBuilder:
         warnings = []
 
         # Extract YAML frontmatter
-        frontmatter_match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+        frontmatter_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
 
         if not frontmatter_match:
             errors.append("Missing YAML frontmatter (must start with ---)")
@@ -266,24 +276,28 @@ class AgentBuilder:
             return False, errors
 
         # Validate required fields
-        required_fields = self.config['validation']['required_frontmatter']
+        required_fields = self.config["validation"]["required_frontmatter"]
         for field in required_fields:
             if field not in frontmatter:
                 errors.append(f"Missing required frontmatter field: {field}")
 
         # Validate model field
-        if 'model' in frontmatter:
-            allowed_models = self.config['validation']['allowed_models']
-            if frontmatter['model'] not in allowed_models:
-                errors.append(f"Invalid model '{frontmatter['model']}'. Allowed: {', '.join(allowed_models)}")
+        if "model" in frontmatter:
+            allowed_models = self.config["validation"]["allowed_models"]
+            if frontmatter["model"] not in allowed_models:
+                errors.append(
+                    f"Invalid model '{frontmatter['model']}'. Allowed: {', '.join(allowed_models)}"
+                )
 
         # Check for unresolved Jinja2 syntax (compilation error indicator)
-        if '{{' in content or '{%' in content:
-            errors.append("Unresolved Jinja2 syntax found in output (template compilation incomplete)")
+        if "{{" in content or "{%" in content:
+            errors.append(
+                "Unresolved Jinja2 syntax found in output (template compilation incomplete)"
+            )
 
         # Token budget validation
         token_count = self.estimate_tokens(content)
-        max_tokens = self.config['validation']['max_tokens']
+        max_tokens = self.config["validation"]["max_tokens"]
         if token_count > max_tokens:
             errors.append(f"Token count {token_count} exceeds limit of {max_tokens}")
 
@@ -297,13 +311,15 @@ class AgentBuilder:
             # Check for dangerous commands
             dangerous_warnings = self.check_dangerous_commands(bash_code)
             for warn in dangerous_warnings:
-                if warn['severity'] == 'critical':
-                    warnings.append(f"Bash block {i+1}: CRITICAL - {warn['description']}")
+                if warn["severity"] == "critical":
+                    warnings.append(
+                        f"Bash block {i+1}: CRITICAL - {warn['description']}"
+                    )
 
         # Log warnings but don't fail build
-        if warnings and self.config['logging']['show_warnings']:
+        if warnings and self.config["logging"]["show_warnings"]:
             for warning in warnings:
-                self.log(f"    [WARN] {warning}", 'warning')
+                self.log(f"    [WARN] {warning}", "warning")
 
         return len(errors) == 0, errors
 
@@ -314,19 +330,19 @@ class AgentBuilder:
         Returns:
             exit_code: 0 for success, 1 for failures
         """
-        self.log("\n[BUILD] Claude Agent Build System", 'info')
-        self.log("=" * 50, 'info')
+        self.log("\n[BUILD] Claude Agent Build System", "info")
+        self.log("=" * 50, "info")
 
         templates = self.discover_templates()
 
         if not templates:
-            self.log("\n[WARN] No templates to build", 'warning')
+            self.log("\n[WARN] No templates to build", "warning")
             return 0
 
-        self.log(f"\nBuilding {len(templates)} agent(s)...\n", 'info')
+        self.log(f"\nBuilding {len(templates)} agent(s)...\n", "info")
 
         for template_path in templates:
-            self.stats['total'] += 1
+            self.stats["total"] += 1
 
             if validate_only:
                 # Just validate without writing
@@ -334,47 +350,53 @@ class AgentBuilder:
                     template_rel = f"agents/{template_path.name}"
                     template = self.env.get_template(template_rel)
                     rendered = template.render(**self.build_context)
-                    is_valid, errors = self.validate_output(rendered, template_path.stem)
+                    is_valid, errors = self.validate_output(
+                        rendered, template_path.stem
+                    )
 
                     if is_valid:
-                        self.log(f"  [OK] {template_path.stem} (valid)", 'success')
-                        self.stats['success'] += 1
+                        self.log(f"  [OK] {template_path.stem} (valid)", "success")
+                        self.stats["success"] += 1
                     else:
-                        self.log(f"  [X] {template_path.stem} (invalid)", 'error')
+                        self.log(f"  [X] {template_path.stem} (invalid)", "error")
                         for error in errors:
-                            self.log(f"    -> {error}", 'error')
-                        self.stats['failed'] += 1
+                            self.log(f"    -> {error}", "error")
+                        self.stats["failed"] += 1
                 except Exception as e:
-                    self.log(f"  [X] {template_path.stem}: {e}", 'error')
-                    self.stats['failed'] += 1
+                    self.log(f"  [X] {template_path.stem}: {e}", "error")
+                    self.stats["failed"] += 1
             else:
                 success, output_path = self.compile_template(template_path, verbose)
                 if success:
-                    self.stats['success'] += 1
+                    self.stats["success"] += 1
                 else:
-                    self.stats['failed'] += 1
+                    self.stats["failed"] += 1
 
         # Print summary
-        self.log("\n" + "=" * 50, 'info')
-        self.log("[STATS] Build Summary", 'info')
-        self.log("=" * 50, 'info')
-        self.log(f"  Total:   {self.stats['total']}", 'info')
-        self.log(f"  Success: {self.stats['success']}", 'success')
+        self.log("\n" + "=" * 50, "info")
+        self.log("[STATS] Build Summary", "info")
+        self.log("=" * 50, "info")
+        self.log(f"  Total:   {self.stats['total']}", "info")
+        self.log(f"  Success: {self.stats['success']}", "success")
 
-        if self.stats['failed'] > 0:
-            self.log(f"  Failed:  {self.stats['failed']}", 'error')
+        if self.stats["failed"] > 0:
+            self.log(f"  Failed:  {self.stats['failed']}", "error")
 
         if not validate_only:
-            self.log(f"\n  Output: {self.output_dir.relative_to(self.root_dir)}/", 'info')
+            self.log(
+                f"\n  Output: {self.output_dir.relative_to(self.root_dir)}/", "info"
+            )
 
         # Return exit code
-        return 1 if self.stats['failed'] > 0 else 0
+        return 1 if self.stats["failed"] > 0 else 0
 
 
 @click.command()
-@click.option('--validate-only', is_flag=True, help='Validate templates without compiling')
-@click.option('--verbose', is_flag=True, help='Show detailed output')
-@click.option('--strict', is_flag=True, help='Fail on warnings (stricter validation)')
+@click.option(
+    "--validate-only", is_flag=True, help="Validate templates without compiling"
+)
+@click.option("--verbose", is_flag=True, help="Show detailed output")
+@click.option("--strict", is_flag=True, help="Fail on warnings (stricter validation)")
 def main(validate_only: bool, verbose: bool, strict: bool):
     """
     Build system for Claude Agent Suite.
@@ -390,8 +412,10 @@ def main(validate_only: bool, verbose: bool, strict: bool):
     try:
         builder = AgentBuilder()
         if strict:
-            builder.config['logging']['show_warnings'] = True
-            builder.log("\n[INFO] Strict mode enabled - warnings will fail build", 'warning')
+            builder.config["logging"]["show_warnings"] = True
+            builder.log(
+                "\n[INFO] Strict mode enabled - warnings will fail build", "warning"
+            )
         exit_code = builder.build_all(verbose=verbose, validate_only=validate_only)
         sys.exit(exit_code)
     except KeyboardInterrupt:
@@ -402,5 +426,5 @@ def main(validate_only: bool, verbose: bool, strict: bool):
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

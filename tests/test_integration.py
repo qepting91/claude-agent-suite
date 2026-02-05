@@ -29,7 +29,7 @@ class TestEndToEndBuild:
             assert Path(output_path).exists()
 
             # Verify output content
-            with open(output_path, 'r') as f:
+            with open(output_path, "r") as f:
                 content = f.read()
                 assert "---" in content  # Has frontmatter
                 assert "{{" not in content  # No unresolved Jinja2
@@ -46,7 +46,7 @@ class TestEndToEndBuild:
         assert success is True
 
         # Verify skill content was included
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             content = f.read()
             assert "Cognitive Protocol" in content
             assert "Analyze" in content
@@ -65,13 +65,19 @@ class TestEndToEndBuild:
         assert success is True
 
     def test_build_with_dangerous_commands_warning(
-        self, temp_project_dir, valid_config, template_with_dangerous_commands,
-        dangerous_commands_config, capsys
+        self,
+        temp_project_dir,
+        valid_config,
+        template_with_dangerous_commands,
+        dangerous_commands_config,
+        capsys,
     ):
         """Test that dangerous commands produce warnings but don't fail build."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        success, output_path = builder.compile_template(template_with_dangerous_commands)
+        success, output_path = builder.compile_template(
+            template_with_dangerous_commands
+        )
 
         # Should succeed with warnings
         assert success is True
@@ -104,16 +110,14 @@ class TestBuildVariableSubstitution:
         success, output_path = builder.compile_template(valid_template)
         assert success is True
 
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             content = f.read()
 
             # Python version should be resolved
             assert "{{ python_version }}" not in content
             assert f"{sys.version_info.major}.{sys.version_info.minor}" in content
 
-    def test_build_timestamp_present(
-        self, temp_project_dir, valid_config
-    ):
+    def test_build_timestamp_present(self, temp_project_dir, valid_config):
         """Test that build timestamp is available to templates."""
         # Create template with timestamp variable
         template_content = """---
@@ -126,7 +130,7 @@ model: sonnet
 Built at: {{ build_timestamp }}
 """
         template_path = temp_project_dir / "src" / "agents" / "timestamp-agent.md.j2"
-        with open(template_path, 'w') as f:
+        with open(template_path, "w") as f:
             f.write(template_content)
 
         builder = AgentBuilder(root_dir=temp_project_dir)
@@ -134,7 +138,7 @@ Built at: {{ build_timestamp }}
         success, output_path = builder.compile_template(template_path)
         assert success is True
 
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             content = f.read()
 
             # Timestamp should be resolved
@@ -152,9 +156,9 @@ class TestBuildStatistics:
         builder = AgentBuilder(root_dir=temp_project_dir)
         exit_code = builder.build_all()
 
-        assert builder.stats['total'] > 0
-        assert builder.stats['success'] > 0
-        assert builder.stats['failed'] == 0
+        assert builder.stats["total"] > 0
+        assert builder.stats["success"] > 0
+        assert builder.stats["failed"] == 0
 
     def test_stats_tracking_failures(
         self, temp_project_dir, valid_config, invalid_template_no_frontmatter
@@ -163,8 +167,8 @@ class TestBuildStatistics:
         builder = AgentBuilder(root_dir=temp_project_dir)
         exit_code = builder.build_all()
 
-        assert builder.stats['total'] > 0
-        assert builder.stats['failed'] > 0
+        assert builder.stats["total"] > 0
+        assert builder.stats["failed"] > 0
 
     def test_stats_reset_between_builds(
         self, temp_project_dir, valid_config, valid_template
@@ -173,10 +177,10 @@ class TestBuildStatistics:
         builder = AgentBuilder(root_dir=temp_project_dir)
 
         # Initial stats should be zero
-        assert builder.stats['total'] == 0
-        assert builder.stats['success'] == 0
-        assert builder.stats['failed'] == 0
-        assert builder.stats['warnings'] == 0
+        assert builder.stats["total"] == 0
+        assert builder.stats["success"] == 0
+        assert builder.stats["failed"] == 0
+        assert builder.stats["warnings"] == 0
 
 
 class TestCLIOptions:
@@ -216,7 +220,7 @@ class TestCLIOptions:
         builder = AgentBuilder(root_dir=temp_project_dir)
 
         # Enable strict mode
-        builder.config['logging']['show_warnings'] = True
+        builder.config["logging"]["show_warnings"] = True
 
         # Warnings should be shown (tested via logging output)
-        assert builder.config['logging']['show_warnings'] is True
+        assert builder.config["logging"]["show_warnings"] is True

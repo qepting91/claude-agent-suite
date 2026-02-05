@@ -19,13 +19,12 @@ class TestAgentBuilderInit:
     def test_init_with_valid_config(self, temp_project_dir, valid_config):
         """Test initialization with valid configuration."""
         builder = AgentBuilder(
-            config_path="config/build_config.yml",
-            root_dir=temp_project_dir
+            config_path="config/build_config.yml", root_dir=temp_project_dir
         )
 
         assert builder.root_dir == temp_project_dir
         assert builder.config == valid_config
-        assert builder.stats == {'total': 0, 'success': 0, 'failed': 0, 'warnings': 0}
+        assert builder.stats == {"total": 0, "success": 0, "failed": 0, "warnings": 0}
 
     def test_init_creates_output_directory(self, temp_project_dir, valid_config):
         """Test that initialization creates output directory if it doesn't exist."""
@@ -33,11 +32,11 @@ class TestAgentBuilderInit:
         output_dir = temp_project_dir / "dist" / "agents"
         if output_dir.exists():
             import shutil
+
             shutil.rmtree(output_dir)
 
         builder = AgentBuilder(
-            config_path="config/build_config.yml",
-            root_dir=temp_project_dir
+            config_path="config/build_config.yml", root_dir=temp_project_dir
         )
 
         assert output_dir.exists()
@@ -45,10 +44,7 @@ class TestAgentBuilderInit:
     def test_init_with_missing_config_exits(self, temp_project_dir):
         """Test that missing config file causes sys.exit(1)."""
         with pytest.raises(SystemExit) as exc_info:
-            AgentBuilder(
-                config_path="nonexistent.yml",
-                root_dir=temp_project_dir
-            )
+            AgentBuilder(config_path="nonexistent.yml", root_dir=temp_project_dir)
 
         assert exc_info.value.code == 1
 
@@ -56,14 +52,11 @@ class TestAgentBuilderInit:
         """Test that invalid YAML causes sys.exit(1)."""
         # Create invalid YAML file
         config_path = temp_project_dir / "config" / "invalid.yml"
-        with open(config_path, 'w') as f:
+        with open(config_path, "w") as f:
             f.write("invalid: yaml: content: [")
 
         with pytest.raises(SystemExit) as exc_info:
-            AgentBuilder(
-                config_path="config/invalid.yml",
-                root_dir=temp_project_dir
-            )
+            AgentBuilder(config_path="config/invalid.yml", root_dir=temp_project_dir)
 
         assert exc_info.value.code == 1
 
@@ -82,7 +75,9 @@ class TestEstimateTokens:
         """Test token estimation with simple text."""
         builder = AgentBuilder(root_dir=temp_project_dir)
         # 10 words * 1.3 = 13 tokens
-        tokens = builder.estimate_tokens("one two three four five six seven eight nine ten")
+        tokens = builder.estimate_tokens(
+            "one two three four five six seven eight nine ten"
+        )
 
         assert tokens == 13
 
@@ -165,7 +160,7 @@ class TestValidateBashSyntax:
         """Test validation of valid bash code."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
             is_valid, error_msg = builder.validate_bash_syntax("echo 'test'")
@@ -173,14 +168,15 @@ class TestValidateBashSyntax:
             assert is_valid is True
             assert error_msg == ""
 
-    def test_validate_bash_syntax_with_invalid_code(self, temp_project_dir, valid_config):
+    def test_validate_bash_syntax_with_invalid_code(
+        self, temp_project_dir, valid_config
+    ):
         """Test validation of invalid bash code."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(
-                returncode=1,
-                stderr="syntax error near unexpected token"
+                returncode=1, stderr="syntax error near unexpected token"
             )
 
             is_valid, error_msg = builder.validate_bash_syntax("if [ missing bracket")
@@ -188,11 +184,13 @@ class TestValidateBashSyntax:
             assert is_valid is False
             assert "syntax error" in error_msg
 
-    def test_validate_bash_syntax_when_bash_not_found(self, temp_project_dir, valid_config):
+    def test_validate_bash_syntax_when_bash_not_found(
+        self, temp_project_dir, valid_config
+    ):
         """Test validation when bash is not available."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        with patch('subprocess.run', side_effect=FileNotFoundError):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
             is_valid, error_msg = builder.validate_bash_syntax("echo 'test'")
 
             # Should skip validation gracefully
@@ -203,18 +201,22 @@ class TestValidateBashSyntax:
         """Test validation when bash times out."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('bash', 5)):
-            is_valid, error_msg = builder.validate_bash_syntax("while true; do echo 'loop'; done")
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("bash", 5)):
+            is_valid, error_msg = builder.validate_bash_syntax(
+                "while true; do echo 'loop'; done"
+            )
 
             # Should skip validation on timeout
             assert is_valid is True
             assert error_msg == ""
 
-    def test_validate_bash_syntax_with_empty_stderr(self, temp_project_dir, valid_config):
+    def test_validate_bash_syntax_with_empty_stderr(
+        self, temp_project_dir, valid_config
+    ):
         """Test validation when bash returns non-zero with empty stderr (WSL case)."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
-        with patch('subprocess.run') as mock_run:
+        with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stderr="")
 
             is_valid, error_msg = builder.validate_bash_syntax("echo 'test'")
@@ -227,7 +229,9 @@ class TestValidateBashSyntax:
 class TestCheckDangerousCommands:
     """Test dangerous command detection."""
 
-    def test_check_dangerous_commands_with_no_config(self, temp_project_dir, valid_config):
+    def test_check_dangerous_commands_with_no_config(
+        self, temp_project_dir, valid_config
+    ):
         """Test when dangerous commands config doesn't exist."""
         builder = AgentBuilder(root_dir=temp_project_dir)
         warnings = builder.check_dangerous_commands("rm -rf /")
@@ -242,8 +246,8 @@ class TestCheckDangerousCommands:
         warnings = builder.check_dangerous_commands("rm -rf /")
 
         assert len(warnings) > 0
-        assert warnings[0]['severity'] == 'critical'
-        assert 'destructive_filesystem' in warnings[0]['category']
+        assert warnings[0]["severity"] == "critical"
+        assert "destructive_filesystem" in warnings[0]["category"]
 
     def test_check_dangerous_commands_detects_chmod(
         self, temp_project_dir, valid_config, dangerous_commands_config
@@ -253,8 +257,8 @@ class TestCheckDangerousCommands:
         warnings = builder.check_dangerous_commands("chmod -R 777 /var/www")
 
         assert len(warnings) > 0
-        assert warnings[0]['severity'] == 'high'
-        assert 'system_modification' in warnings[0]['category']
+        assert warnings[0]["severity"] == "high"
+        assert "system_modification" in warnings[0]["category"]
 
     def test_check_dangerous_commands_safe_command(
         self, temp_project_dir, valid_config, dangerous_commands_config
@@ -299,7 +303,9 @@ You are a test agent.
         assert is_valid is False
         assert any("frontmatter" in err.lower() for err in errors)
 
-    def test_validate_output_missing_required_field(self, temp_project_dir, valid_config):
+    def test_validate_output_missing_required_field(
+        self, temp_project_dir, valid_config
+    ):
         """Test validation fails when required field is missing."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 
@@ -376,7 +382,9 @@ model: sonnet
 class TestDiscoverTemplates:
     """Test template discovery."""
 
-    def test_discover_templates_finds_templates(self, temp_project_dir, valid_config, valid_template):
+    def test_discover_templates_finds_templates(
+        self, temp_project_dir, valid_config, valid_template
+    ):
         """Test that discover_templates finds .md.j2 files."""
         builder = AgentBuilder(root_dir=temp_project_dir)
         templates = builder.discover_templates()
@@ -395,7 +403,9 @@ class TestDiscoverTemplates:
 class TestCompileTemplate:
     """Test template compilation."""
 
-    def test_compile_template_success(self, temp_project_dir, valid_config, valid_template):
+    def test_compile_template_success(
+        self, temp_project_dir, valid_config, valid_template
+    ):
         """Test successful template compilation."""
         builder = AgentBuilder(root_dir=temp_project_dir)
         success, output_path = builder.compile_template(valid_template, verbose=False)
@@ -415,7 +425,7 @@ class TestCompileTemplate:
         assert output_file.exists()
 
         # Verify content
-        with open(output_file, 'r') as f:
+        with open(output_file, "r") as f:
             content = f.read()
             assert "test-agent" in content
             assert "{{ python_version }}" not in content  # Variables should be resolved
@@ -440,8 +450,8 @@ class TestBuildAll:
         exit_code = builder.build_all(verbose=False, validate_only=False)
 
         assert exit_code == 0
-        assert builder.stats['success'] > 0
-        assert builder.stats['failed'] == 0
+        assert builder.stats["success"] > 0
+        assert builder.stats["failed"] == 0
 
     def test_build_all_with_failures(
         self, temp_project_dir, valid_config, invalid_template_no_frontmatter
@@ -451,9 +461,11 @@ class TestBuildAll:
         exit_code = builder.build_all(verbose=False, validate_only=False)
 
         assert exit_code == 1
-        assert builder.stats['failed'] > 0
+        assert builder.stats["failed"] > 0
 
-    def test_build_all_validate_only_mode(self, temp_project_dir, valid_config, valid_template):
+    def test_build_all_validate_only_mode(
+        self, temp_project_dir, valid_config, valid_template
+    ):
         """Test build_all in validate-only mode doesn't write files."""
         builder = AgentBuilder(root_dir=temp_project_dir)
 

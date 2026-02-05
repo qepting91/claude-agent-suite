@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 # Add scripts directory to path so we can import build module
-sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 
 @pytest.fixture
@@ -34,28 +34,22 @@ def temp_project_dir(tmp_path):
 def valid_config(temp_project_dir) -> Dict:
     """Create a valid build configuration."""
     config = {
-        'build': {
-            'source_dir': 'src/agents',
-            'output_dir': 'dist/agents',
-            'skills_dir': 'src/skills'
+        "build": {
+            "source_dir": "src/agents",
+            "output_dir": "dist/agents",
+            "skills_dir": "src/skills",
         },
-        'validation': {
-            'max_tokens': 2500,
-            'required_frontmatter': ['name', 'description', 'tools', 'model'],
-            'allowed_models': ['sonnet', 'haiku', 'opus']
+        "validation": {
+            "max_tokens": 2500,
+            "required_frontmatter": ["name", "description", "tools", "model"],
+            "allowed_models": ["sonnet", "haiku", "opus"],
         },
-        'templates': {
-            'file_extension': '.md.j2',
-            'output_extension': '.md'
-        },
-        'logging': {
-            'verbose': False,
-            'show_warnings': True
-        }
+        "templates": {"file_extension": ".md.j2", "output_extension": ".md"},
+        "logging": {"verbose": False, "show_warnings": True},
     }
 
     config_path = temp_project_dir / "config" / "build_config.yml"
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         yaml.dump(config, f)
 
     return config
@@ -80,7 +74,7 @@ You are a test agent for unit testing.
 This is a test template with {{ python_version }} support.
 """
     template_path = temp_project_dir / "src" / "agents" / "test-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
@@ -94,7 +88,7 @@ def invalid_template_no_frontmatter(temp_project_dir):
 This template is missing frontmatter.
 """
     template_path = temp_project_dir / "src" / "agents" / "invalid-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
@@ -123,7 +117,7 @@ find . -name "*.py"
 ```
 """
     template_path = temp_project_dir / "src" / "agents" / "bash-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
@@ -147,7 +141,7 @@ chmod -R 777 /
 ```
 """
     template_path = temp_project_dir / "src" / "agents" / "dangerous-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
@@ -161,19 +155,20 @@ def dangerous_commands_config(temp_project_dir):
             "destructive_filesystem": {
                 "severity": "critical",
                 "patterns": [r"rm\s+-rf\s+/", r"mkfs\."],
-                "description": "Commands that can destroy filesystem"
+                "description": "Commands that can destroy filesystem",
             },
             "system_modification": {
                 "severity": "high",
                 "patterns": [r"chmod\s+-R\s+777"],
-                "description": "Commands that modify system security"
-            }
+                "description": "Commands that modify system security",
+            },
         }
     }
 
     config_path = temp_project_dir / "config" / "dangerous_commands.json"
     import json
-    with open(config_path, 'w') as f:
+
+    with open(config_path, "w") as f:
         json.dump(config, f)
 
     return config_path
@@ -189,8 +184,10 @@ Follow these steps:
 2. Plan
 3. Execute
 """
-    skill_path = temp_project_dir / "src" / "skills" / "common" / "cognitive_protocol.md"
-    with open(skill_path, 'w') as f:
+    skill_path = (
+        temp_project_dir / "src" / "skills" / "common" / "cognitive_protocol.md"
+    )
+    with open(skill_path, "w") as f:
         f.write(skill_content)
 
     return skill_path
@@ -213,7 +210,7 @@ Test agent.
 {% include 'skills/common/cognitive_protocol.md' %}
 """
     template_path = temp_project_dir / "src" / "agents" / "include-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
@@ -238,7 +235,7 @@ model: sonnet
 {long_content}
 """
     template_path = temp_project_dir / "src" / "agents" / "large-agent.md.j2"
-    with open(template_path, 'w') as f:
+    with open(template_path, "w") as f:
         f.write(template_content)
 
     return template_path
