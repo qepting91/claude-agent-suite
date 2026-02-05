@@ -23,8 +23,7 @@ from typing import Dict, List, Optional, Tuple
 import click
 import yaml
 from colorama import Fore, Style, init
-from jinja2 import (Environment, FileSystemLoader, TemplateError,
-                    TemplateNotFound)
+from jinja2 import Environment, FileSystemLoader, TemplateError, TemplateNotFound
 
 # Initialize colorama for cross-platform colors
 init(autoreset=True)
