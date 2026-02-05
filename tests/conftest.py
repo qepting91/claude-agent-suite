@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures for build system tests."""
 
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 from typing import Dict
 

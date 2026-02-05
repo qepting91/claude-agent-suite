@@ -1,14 +1,13 @@
 """Unit tests for AgentBuilder class."""
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-
 # Import the module under test
 from build import AgentBuilder
 
