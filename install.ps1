@@ -81,7 +81,7 @@ function Invoke-Rollback {
 }
 
 # Check if Claude Code is installed
-Write-Host "[1/6] Checking prerequisites..." -ForegroundColor Yellow
+Write-Host "[1/7] Checking prerequisites..." -ForegroundColor Yellow
 try {
     $claudeVersion = claude --version 2>&1
     Write-Host "  ✓ Claude Code is installed: $claudeVersion" -ForegroundColor Green
@@ -96,7 +96,7 @@ try {
 Test-GitRepository
 
 # Create backup
-Write-Host "`n[2/6] Creating backup..." -ForegroundColor Yellow
+Write-Host "`n[2/7] Creating backup..." -ForegroundColor Yellow
 if (Test-Path $CLAUDE_DIR) {
     Write-Host "  Creating backup: $BACKUP_DIR" -ForegroundColor Cyan
     try {
@@ -124,7 +124,7 @@ if (Test-Path $CLAUDE_DIR) {
 }
 
 # Create directories
-Write-Host "`n[3/6] Creating directories..." -ForegroundColor Yellow
+Write-Host "`n[3/7] Creating directories..." -ForegroundColor Yellow
 $directories = @(
     "$CLAUDE_DIR\agents"
 )
@@ -138,13 +138,44 @@ foreach ($dir in $directories) {
     }
 }
 
+# Build agents from source templates
+Write-Host "`n[4/7] Building agents from source..." -ForegroundColor Yellow
+Write-Host "  Running build system (scripts/build.py)..." -ForegroundColor Cyan
+
+# Check if Python is available
+$pythonCmd = $null
+if (Get-Command python3 -ErrorAction SilentlyContinue) {
+    $pythonCmd = "python3"
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
+    $pythonCmd = "python"
+} else {
+    Write-Host "  ✗ Python is not installed!" -ForegroundColor Red
+    Write-Host "  Python 3.10+ is required to build agents." -ForegroundColor Red
+    Invoke-Rollback
+}
+
+# Run the build system
+try {
+    Push-Location $SCRIPT_DIR
+    & $pythonCmd scripts/build.py
+    if ($LASTEXITCODE -ne 0) {
+        throw "Build failed with exit code $LASTEXITCODE"
+    }
+    Write-Host "  ✓ Build completed successfully" -ForegroundColor Green
+    Pop-Location
+} catch {
+    Write-Host "  ✗ Build failed!" -ForegroundColor Red
+    Pop-Location
+    Invoke-Rollback
+}
+
 # Copy agents with validation
-Write-Host "`n[4/6] Installing agents..." -ForegroundColor Yellow
+Write-Host "`n[5/7] Installing agents..." -ForegroundColor Yellow
 
 $EXPECTED_AGENTS = 15
 $COPIED_AGENTS = 0
 
-$agentsSource = Join-Path $SCRIPT_DIR "agents"
+$agentsSource = Join-Path $SCRIPT_DIR ".claude\agents"
 if (Test-Path $agentsSource) {
     # Validate all agents first
     Write-Host "  Validating agent files..." -ForegroundColor Cyan
@@ -186,16 +217,16 @@ if (Test-Path $agentsSource) {
 
     Write-Host "  ✓ All $COPIED_AGENTS agents installed successfully" -ForegroundColor Green
 } else {
-    Write-Host "  ✗ Agents directory not found: $agentsSource" -ForegroundColor Red
-    Write-Host "  Common causes:" -ForegroundColor Cyan
-    Write-Host "    • Downloaded as ZIP (not git clone)" -ForegroundColor Gray
-    Write-Host "    • Running from wrong directory" -ForegroundColor Gray
-    Write-Host "    • Incomplete download" -ForegroundColor Gray
-    exit 1
+    Write-Host "  ✗ Built agents directory not found: $agentsSource" -ForegroundColor Red
+    Write-Host "  This indicates the build system failed." -ForegroundColor Cyan
+    Write-Host "    • Check build.py output above for errors" -ForegroundColor Gray
+    Write-Host "    • Ensure Python 3.10+ is installed" -ForegroundColor Gray
+    Write-Host "    • Verify requirements.txt dependencies" -ForegroundColor Gray
+    Invoke-Rollback
 }
 
 # Copy documentation
-Write-Host "`n[5/6] Installing documentation..." -ForegroundColor Yellow
+Write-Host "`n[6/7] Installing documentation..." -ForegroundColor Yellow
 $docsSource = Join-Path $SCRIPT_DIR "docs"
 if (Test-Path $docsSource) {
     $docFiles = Get-ChildItem -Path $docsSource -Filter "*.md"
@@ -208,7 +239,7 @@ if (Test-Path $docsSource) {
 }
 
 # Merge settings
-Write-Host "`n[6/6] Configuring settings..." -ForegroundColor Yellow
+Write-Host "`n[7/7] Configuring settings..." -ForegroundColor Yellow
 $settingsSource = Join-Path $SCRIPT_DIR "config\settings.json"
 $settingsTarget = Join-Path $CLAUDE_DIR "settings.json"
 

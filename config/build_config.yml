@@ -3,7 +3,7 @@
 
 build:
   source_dir: "src/agents"
-  output_dir: "dist/agents"
+  output_dir: ".claude/agents"
   skills_dir: "src/skills"
 
 validation:

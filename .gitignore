@@ -55,5 +55,11 @@ tmp/
 temp/
 *.tmp
 
-# Build system outputs (generated, not source)
+# Build system outputs (agents are now in .claude/agents/ - tracked in git)
+# Legacy dist/ directory (removed in Phase 1)
 dist/
+
+# Claude Code user files (but track .claude/agents/ - see below)
+.claude/*
+!.claude/agents/
+!.claude/agents/**

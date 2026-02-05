@@ -88,7 +88,7 @@ rollback_installation() {
 trap rollback_installation ERR
 
 # Check if Claude Code is installed
-echo -e "${YELLOW}[1/6] Checking prerequisites...${NC}"
+echo -e "${YELLOW}[1/7] Checking prerequisites...${NC}"
 if command -v claude &> /dev/null; then
     CLAUDE_VERSION=$(claude --version 2>&1 || echo "unknown")
     echo -e "${GREEN}  ✓ Claude Code is installed: $CLAUDE_VERSION${NC}"
@@ -103,7 +103,7 @@ fi
 check_git_repository
 
 # Create backup
-echo -e "\n${YELLOW}[2/6] Creating backup...${NC}"
+echo -e "\n${YELLOW}[2/7] Creating backup...${NC}"
 if [ -d "$CLAUDE_DIR" ]; then
     echo -e "${CYAN}  Creating backup: $BACKUP_DIR${NC}"
     cp -r "$CLAUDE_DIR" "$BACKUP_DIR"
@@ -126,20 +126,40 @@ else
 fi
 
 # Create directories
-echo -e "\n${YELLOW}[3/6] Creating directories...${NC}"
+echo -e "\n${YELLOW}[3/7] Creating directories...${NC}"
 mkdir -p "$CLAUDE_DIR/agents"
 echo -e "${GREEN}  ✓ Created: $CLAUDE_DIR/agents${NC}"
 
+# Build agents from source templates
+echo -e "\n${YELLOW}[4/6] Building agents from source...${NC}"
+echo -e "${CYAN}  Running build system (scripts/build.py)...${NC}"
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
+    echo -e "${RED}  ✗ Python is not installed!${NC}"
+    echo -e "${RED}  Python 3.10+ is required to build agents.${NC}"
+    rollback_installation
+fi
+
+# Run the build system
+PYTHON_CMD=$(command -v python3 || command -v python)
+if cd "$SCRIPT_DIR" && $PYTHON_CMD scripts/build.py; then
+    echo -e "${GREEN}  ✓ Build completed successfully${NC}"
+else
+    echo -e "${RED}  ✗ Build failed!${NC}"
+    rollback_installation
+fi
+
 # Copy agents with validation
-echo -e "\n${YELLOW}[4/6] Installing agents...${NC}"
+echo -e "\n${YELLOW}[5/6] Installing agents...${NC}"
 
 EXPECTED_AGENTS=15
 COPIED_AGENTS=0
 
-if [ -d "$SCRIPT_DIR/agents" ]; then
+if [ -d "$SCRIPT_DIR/.claude/agents" ]; then
     # Validate all agents first
     echo -e "${CYAN}  Validating agent files...${NC}"
-    for agent in "$SCRIPT_DIR/agents"/*.md; do
+    for agent in "$SCRIPT_DIR/.claude/agents"/*.md; do
         [ -f "$agent" ] || continue
         if ! validate_agent_frontmatter "$agent"; then
             echo -e "${RED}  Validation failed! Repository may be corrupted.${NC}"
@@ -149,7 +169,7 @@ if [ -d "$SCRIPT_DIR/agents" ]; then
 
     # Copy validated agents
     echo -e "${CYAN}  Copying agents...${NC}"
-    for agent in "$SCRIPT_DIR/agents"/*.md; do
+    for agent in "$SCRIPT_DIR/.claude/agents"/*.md; do
         [ -f "$agent" ] || continue
         agent_name=$(basename "$agent")
 
@@ -176,16 +196,16 @@ if [ -d "$SCRIPT_DIR/agents" ]; then
 
     echo -e "${GREEN}  ✓ All $COPIED_AGENTS agents installed successfully${NC}"
 else
-    echo -e "${RED}  ✗ Agents directory not found: $SCRIPT_DIR/agents${NC}"
-    echo -e "${CYAN}  Common causes:${NC}"
-    echo -e "${GRAY}    • Downloaded as ZIP (not git clone)${NC}"
-    echo -e "${GRAY}    • Running from wrong directory${NC}"
-    echo -e "${GRAY}    • Incomplete download${NC}"
-    exit 1
+    echo -e "${RED}  ✗ Built agents directory not found: $SCRIPT_DIR/.claude/agents${NC}"
+    echo -e "${CYAN}  This indicates the build system failed.${NC}"
+    echo -e "${GRAY}    • Check build.py output above for errors${NC}"
+    echo -e "${GRAY}    • Ensure Python 3.10+ is installed${NC}"
+    echo -e "${GRAY}    • Verify requirements.txt dependencies${NC}"
+    rollback_installation
 fi
 
 # Copy documentation
-echo -e "\n${YELLOW}[5/6] Installing documentation...${NC}"
+echo -e "\n${YELLOW}[6/7] Installing documentation...${NC}"
 if [ -d "$SCRIPT_DIR/docs" ]; then
     for doc in "$SCRIPT_DIR/docs"/*.md; do
         if [ -f "$doc" ]; then
@@ -198,7 +218,7 @@ else
 fi
 
 # Merge settings
-echo -e "\n${YELLOW}[6/6] Configuring settings...${NC}"
+echo -e "\n${YELLOW}[7/7] Configuring settings...${NC}"
 if [ -f "$SCRIPT_DIR/config/settings.json" ]; then
     if [ -f "$CLAUDE_DIR/settings.json" ]; then
         echo -e "${CYAN}  ℹ Existing settings.json found${NC}"
