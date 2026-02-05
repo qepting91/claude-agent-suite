@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-05T21:27:58Z",
+    "git_sha": "84257776185c6d93ea327de9736fa04111ec5ce5",
+    "git_tag": "v0.0.5",
+    "generator": "generate-evidence.sh",
+    "version": "1.0.0"
+  },
+  "artifacts": {
+    "agents": [
+      {"file": "astro-expert.md", "sha256": "01746e4ac8a00def1b76f1e54bb0be0efd8d0ff05c755e085f8e35c1e25833fe", "size": 4361},
+      {"file": "backend-engineer.md", "sha256": "84cdac80ea3a088c60c0f7efd570747dc1c9386ad092939ee944cc12e30066ee", "size": 10211},
+      {"file": "frontend-architect.md", "sha256": "f2f154eca812c8e684cabad18a1da5cfe07d0b57055b98eeb3ccdf0a94d31bb6", "size": 4351},
+      {"file": "go-expert.md", "sha256": "8b031ede015bbf066c507d6c160305972a35efc9bd4cbfcb036db6a18cb1c896", "size": 4370},
+      {"file": "mongo-architect.md", "sha256": "ccfcdd2204dd167404e70a0a3ccc198a169e2e166d5ce164963f09f6d280ef4e", "size": 4253},
+      {"file": "mysql-expert.md", "sha256": "bab0e1346f36334847971801d293514c72960073f4889174bacb7279694fdacd", "size": 4188},
+      {"file": "node-engineer.md", "sha256": "864ce046ba18b335d0fa1d0868360b56f6d955383a40c234354bc3c2fb7b3c43", "size": 4217},
+      {"file": "postgres-dba.md", "sha256": "38146e521ad16d5df9352345b9b0f4ba30bf1393a22826c321b9d7017066b510", "size": 4301},
+      {"file": "powershell-automator.md", "sha256": "ab9df729c533d30ae3db589d200078bb309814ebe98f37c3db1046e82af23401", "size": 4503},
+      {"file": "prompt-engineer.md", "sha256": "08421499291ea257dd6464d4a9f6c8c6fe3e72a38d285290ecd7346e84641593", "size": 4479},
+      {"file": "python-architect.md", "sha256": "de5fafeec20931378bae77beaf34fd5d4ab144810ed6c5a8acc67b4004643ed8", "size": 4140},
+      {"file": "secure-code-reviewer.md", "sha256": "24447b3a68dc31c6027cb8f05dfe79a50ee401bbe8c7c888a38dc1433f49fe42", "size": 10556},
+      {"file": "security-engineer.md", "sha256": "15e2ea4c1d24c1f97c4fd947a6e3044974da696c327f3dd4bfa295b81996aedf", "size": 8010},
+      {"file": "streamlit-expert.md", "sha256": "b114b7e5395710d692e66f362613daf62ae7d308bdc0751e374d4ffbb9ea212d", "size": 4488},
+      {"file": "test-agent.md", "sha256": "9229bd9c95e86d847f67d7055cdfb7b7ede60eb8d7d4d7a25cac1253be8be955", "size": 807},
+      {"file": "ux-ui-designer.md", "sha256": "f5d22fb9e0b43e3c0f4884484d0ab5a36b57bb22cf540293c3170890ba4debce", "size": 12176}
+    ],
+    "security_config": {
+      "dangerous_commands_sha256": "903df7347a3e26e1a026e320f1d5d5376af1f100414d13b4ceaadff26857ba82"
+    },
+    "intelligence_tests": {
+      "results_sha256": null,
+      "pass_rate": null,
+      "total_tests": 0
+    }
+  }
+}
