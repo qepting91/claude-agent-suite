@@ -32,9 +32,9 @@ init(autoreset=True)
 class AgentBuilder:
     """Builds agent markdown files from Jinja2 templates."""
 
-    def __init__(self, config_path: str = "config/build_config.yml"):
+    def __init__(self, config_path: str = "config/build_config.yml", root_dir: Optional[Path] = None):
         """Initialize the builder with configuration."""
-        self.root_dir = Path(__file__).parent.parent
+        self.root_dir = root_dir if root_dir is not None else Path(__file__).parent.parent
         self.config_path = self.root_dir / config_path
         self.config = self.load_config()
         self.stats = {
