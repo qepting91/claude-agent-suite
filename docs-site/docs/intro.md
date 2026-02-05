@@ -35,6 +35,6 @@ cd claude-agent-suite
 
 ## Next Steps
 
-- Browse the [Agent Library](/docs/library) to see all available agents
-- Read the [Agent Team Guide](/docs/agent-team-guide) for usage patterns
-- Set up [Security Skills](/docs/security-skills) for enhanced protection
+- Browse the [Agent Library](./library.md) to see all available agents
+- Read the [Agent Team Guide](./agent-team-guide.md) for usage patterns
+- Set up [Security Skills](./security-skills.md) for enhanced protection

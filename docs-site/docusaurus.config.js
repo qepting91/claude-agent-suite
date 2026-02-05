@@ -4,7 +4,6 @@
 const config = {
     title: 'Claude Agent Suite',
     tagline: 'Enterprise-grade AI agents for Claude Code',
-    favicon: 'img/favicon.ico',
 
     url: 'https://qepting91.github.io',
     baseUrl: '/claude-agent-suite/',
@@ -13,7 +12,7 @@ const config = {
     projectName: 'claude-agent-suite',
 
     onBrokenLinks: 'throw',
-    onBrokenMarkdownLinks: 'warn',
+    onBrokenMarkdownLinks: 'throw',
 
     i18n: {
         defaultLocale: 'en',
@@ -82,8 +81,7 @@ const config = {
             copyright: `Copyright © ${new Date().getFullYear()} Claude Agent Suite. Built with Docusaurus.`,
         },
         prism: {
-            theme: { plain: {}, styles: [] },
-            darkTheme: { plain: {}, styles: [] },
+            additionalLanguages: ['bash', 'json', 'yaml', 'powershell'],
         },
     },
 };
